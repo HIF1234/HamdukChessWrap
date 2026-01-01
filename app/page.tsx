@@ -15,6 +15,7 @@ export default function LandingPage() {
   const [loading, setLoading] = useState(false)
   const [wrapData, setWrapData] = useState<ChessWrapData | null>(null)
   const [shareId, setShareId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null) // added error state for user feedback
   const searchParams = useSearchParams()
 
   useEffect(() => {
@@ -25,6 +26,8 @@ export default function LandingPage() {
         if (wrap) {
           setWrapData(wrap.data)
           setShareId(id)
+        } else {
+          setError("Wrap not found. The link may be invalid or expired.")
         }
         setLoading(false)
       })
@@ -33,17 +36,34 @@ export default function LandingPage() {
 
   const handleGenerateWrap = async (config: WrapConfig) => {
     setLoading(true)
+    setError(null) // clear any previous errors
     try {
       const data = await generateChessWrap(config)
       if (data) {
-        const id = await saveChessWrap(config.username, config.platform, config.narrationMode, data)
+        const id = await saveChessWrap(config.username, config.platform, config.narrationMode || "coach", data)
         setWrapData(data)
         setShareId(id)
-        // Add ID to URL without refreshing
         window.history.pushState({}, "", `?id=${id}`)
+      } else {
+        // show user-friendly error message when account doesn't exist or has no games
+        setError(
+          `Sorry, we couldn't find any games for "${config.username}" on ${config.platform === "chess.com" ? "Chess.com" : "Lichess"} in 2025. Please check your username and try again.`
+        )
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to generate wrap:", error)
+      // display specific error messages
+      if (error.message.includes("not found")) {
+        setError(
+          `Sorry, you don't have an account with username "${config.username}" on ${config.platform === "chess.com" ? "Chess.com" : "Lichess"}.`
+        )
+      } else if (error.message.includes("No games")) {
+        setError(
+          `No games found for "${config.username}" in 2025. Try playing some games first!`
+        )
+      } else {
+        setError("An error occurred while generating your wrap. Please try again.")
+      }
     } finally {
       setLoading(false)
     }
@@ -56,6 +76,7 @@ export default function LandingPage() {
         shareId={shareId}
         onReset={() => {
           setWrapData(null)
+          setError(null) // clear error on reset
           window.history.pushState({}, "", "/")
         }}
       />
@@ -70,6 +91,12 @@ export default function LandingPage() {
         <section className="flex flex-col items-center text-center space-y-8 max-w-4xl mx-auto">
           <LandingHero />
           <UsernameInput onGenerate={handleGenerateWrap} isLoading={loading} />
+          
+          {error && (
+            <div className="w-full max-w-lg p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive">
+              <p className="text-sm font-medium">{error}</p>
+            </div>
+          )}
         </section>
 
         <section id="features" className="space-y-12">
