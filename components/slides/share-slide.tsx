@@ -6,21 +6,23 @@ import { Share2, Download, Trophy, Users, QrCode, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 
-export function ShareSlide({ data }: { data: ChessWrapData }) {
+export function ShareSlide({ data, shareId }: { data: ChessWrapData; shareId: string | null }) {
   const { toast } = useToast()
+
+  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/?id=${shareId}` : ""
 
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
         title: "My Hamduk Chess Wrap 2025",
-        text: `I played ${data.player.totalGames} games this year with a ${data.player.winRate.toFixed(1)}% win rate! Check out my chess wrap.`,
-        url: window.location.href,
+        text: `I played ${data.player.totalGames} games this year! Check out my wrap.`,
+        url: shareUrl,
       })
     } else {
-      navigator.clipboard.writeText(window.location.href)
+      navigator.clipboard.writeText(shareUrl)
       toast({
         title: "Link copied!",
-        description: "Share it with your friends to show off your stats.",
+        description: "Your personalized wrap URL is ready to share.",
       })
     }
   }

@@ -1,62 +1,72 @@
 import type { ChessGame, WrapConfig, ChessWrapData } from "./types"
+import { createBrowserClient } from "@supabase/ssr"
+
+const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 export async function fetchChessDotComGames(username: string, startDate: Date, endDate: Date): Promise<ChessGame[]> {
-  // Mock implementation - will be replaced with actual API calls
   const games: ChessGame[] = []
-
   try {
-    // Fetch archives for the date range
-    const year = startDate.getFullYear()
-    const month = String(startDate.getMonth() + 1).padStart(2, "0")
+    const year = 2025
+    const months = ["10", "11", "12"]
 
-    const response = await fetch(`https://api.chess.com/pub/player/${username}/games/${year}/${month}`)
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch games")
+    for (const month of months) {
+      const response = await fetch(`https://api.chess.com/pub/player/${username}/games/${year}/${month}`)
+      if (response.ok) {
+        const data = await response.json()
+        games.push(...data.games)
+      }
     }
-
-    const data = await response.json()
-
-    // Process games and filter by date range
-    // This is a simplified version - actual implementation would process all months
-
     return games
   } catch (error) {
-    console.error("Error fetching Chess.com games:", error)
+    console.error("[v0] Chess.com API error:", error)
     return []
   }
 }
 
 export async function fetchLichessGames(username: string, startDate: Date, endDate: Date): Promise<ChessGame[]> {
-  const games: ChessGame[] = []
-
   try {
-    const since = Math.floor(startDate.getTime() / 1000)
-    const until = Math.floor(endDate.getTime() / 1000)
-
     const response = await fetch(
-      `https://lichess.org/api/games/user/${username}?since=${since}&until=${until}&pgnInJson=true`,
+      `https://lichess.org/api/games/user/${username}?since=${startDate.getTime()}&until=${endDate.getTime()}&max=100`,
+      { headers: { Accept: "application/x-ndjson" } },
     )
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch games")
-    }
-
-    // Process NDJSON stream
-    // This is a simplified version
-
-    return games
+    if (!response.ok) return []
+    const text = await response.text()
+    return text
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line))
   } catch (error) {
-    console.error("Error fetching Lichess games:", error)
+    console.error("[v0] Lichess API error:", error)
     return []
   }
 }
 
-export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapData | null> {
-  const { username, platform, narrationMode } = config // destructure narrationMode
+export async function saveChessWrap(username: string, platform: string, mode: string, data: ChessWrapData) {
+  const { data: result, error } = await supabase
+    .from("chess_wraps")
+    .insert([{ username, platform, narration_mode: mode, data }])
+    .select("id")
+    .single()
 
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 2000))
+  if (error) throw error
+  return result.id
+}
+
+export async function getChessWrapById(id: string) {
+  const { data, error } = await supabase.from("chess_wraps").select("*").eq("id", id).single()
+  if (error) return null
+  return data
+}
+
+export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapData | null> {
+  const { username, platform, narrationMode } = config
+  const startDate = new Date(2025, 0, 1)
+  const endDate = new Date(2025, 11, 31)
+
+  const rawGames =
+    platform === "chess.com"
+      ? await fetchChessDotComGames(username, startDate, endDate)
+      : await fetchLichessGames(username, startDate, endDate)
 
   // Mock data generation for demo purposes
   const mockData: ChessWrapData = {
@@ -130,8 +140,8 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
       },
     ],
     dateRange: {
-      start: new Date(2025, 0, 1),
-      end: new Date(2025, 11, 31),
+      start: startDate,
+      end: endDate,
     },
   }
 

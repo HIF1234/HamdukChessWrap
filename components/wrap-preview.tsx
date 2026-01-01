@@ -17,10 +17,11 @@ import { ShareSlide } from "@/components/slides/share-slide" // added share slid
 
 interface WrapPreviewProps {
   data: ChessWrapData
+  shareId: string | null
   onReset: () => void
 }
 
-export function WrapPreview({ data, onReset }: WrapPreviewProps) {
+export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [progress, setProgress] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
@@ -60,6 +61,12 @@ export function WrapPreview({ data, onReset }: WrapPreviewProps) {
 
     return () => clearInterval(interval)
   }, [currentSlide, totalSlides, isPaused])
+
+  useEffect(() => {
+    const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3")
+    audio.volume = 0.2
+    audio.play().catch(() => {}) // Handle autoplay restrictions
+  }, [currentSlide])
 
   const nextSlide = () => {
     if (currentSlide < totalSlides - 1) {
@@ -141,7 +148,7 @@ export function WrapPreview({ data, onReset }: WrapPreviewProps) {
             onTouchStart={() => setIsPaused(true)}
             onTouchEnd={() => setIsPaused(false)}
           >
-            <CurrentSlideComponent data={data} />
+            <CurrentSlideComponent data={data} shareId={shareId} />
           </motion.div>
         </AnimatePresence>
 
