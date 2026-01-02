@@ -10,11 +10,12 @@ import { StatsSlide } from "@/components/slides/stats-slide"
 import { RatingSlide } from "@/components/slides/rating-slide"
 import { OpeningSlide } from "@/components/slides/opening-slide"
 import { PlaystyleSlide } from "@/components/slides/playstyle-slide"
-import { HabitsSlide } from "@/components/slides/habits-slide" // added habits slide import
+import { HabitsSlide } from "@/components/slides/habits-slide"
+import { AchievementsSlide } from "@/components/slides/achievements-slide"
 import { InsightsSlide } from "@/components/slides/insights-slide"
-import { HighlightSlide } from "@/components/slides/highlight-slide" // added highlight slide
-import { CoachingSlide } from "@/components/slides/coaching-slide" // added coaching slide
-import { ShareSlide } from "@/components/slides/share-slide" // added share slide import
+import { HighlightSlide } from "@/components/slides/highlight-slide"
+import { CoachingSlide } from "@/components/slides/coaching-slide"
+import { ShareSlide } from "@/components/slides/share-slide"
 
 interface WrapPreviewProps {
   data: ChessWrapData
@@ -26,7 +27,10 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [progress, setProgress] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
-  const [isMuted, setIsMuted] = useState(false) // added mute state
+  const [isMuted, setIsMuted] = useState(false)
+
+  const bgMusic = "https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"
+  const roastMusic = "https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"
 
   const slides = [
     { id: "intro", component: IntroSlide },
@@ -34,15 +38,16 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
     { id: "rating", component: RatingSlide },
     { id: "opening", component: OpeningSlide },
     { id: "playstyle", component: PlaystyleSlide },
-    { id: "habits", component: HabitsSlide }, // added habits slide to sequence
+    { id: "habits", component: HabitsSlide },
+    { id: "achievements", component: AchievementsSlide },
     { id: "insights", component: InsightsSlide },
-    { id: "highlights", component: HighlightSlide }, // added to sequence
-    { id: "coaching", component: CoachingSlide }, // added to sequence
-    { id: "share", component: ShareSlide }, // added share slide to the end of the sequence
+    { id: "highlights", component: HighlightSlide },
+    { id: "coaching", component: CoachingSlide },
+    { id: "share", component: ShareSlide },
   ]
 
   const totalSlides = slides.length
-  const duration = 6000 // 6 seconds per slide
+  const duration = 6000
 
   useEffect(() => {
     if (isPaused) return
@@ -66,13 +71,13 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
   }, [currentSlide, totalSlides, isPaused])
 
   useEffect(() => {
-    const ambientAudio = new Audio("https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3")
-    ambientAudio.volume = isMuted ? 0 : 0.15
+    const ambientAudio = new Audio(data.aiInsights.roastMode ? roastMusic : bgMusic)
+    ambientAudio.volume = isMuted ? 0 : 0.2
     ambientAudio.loop = true
 
     const playAudio = async () => {
       try {
-        if (!isPaused) {
+        if (!isPaused && !isMuted) {
           await ambientAudio.play()
         } else {
           ambientAudio.pause()
@@ -88,12 +93,12 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
       ambientAudio.pause()
       ambientAudio.currentTime = 0
     }
-  }, [isMuted, isPaused])
+  }, [isMuted, isPaused, data.aiInsights.roastMode])
 
   useEffect(() => {
     if (currentSlide > 0 && !isMuted) {
-      const transitionSfx = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3")
-      transitionSfx.volume = 0.1
+      const transitionSfx = new Audio("https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3")
+      transitionSfx.volume = 0.15
       transitionSfx.play().catch(() => {})
     }
   }, [currentSlide, isMuted])

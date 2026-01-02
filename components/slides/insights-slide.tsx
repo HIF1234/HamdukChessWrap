@@ -39,49 +39,43 @@ export function InsightsSlide({ data }: { data: ChessWrapData }) {
       </motion.div>
 
       {/* Strengths & Weaknesses */}
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <motion.div
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="space-y-3"
+          className="space-y-3 p-4 rounded-2xl bg-primary/10 border border-primary/20"
         >
           <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
             <Zap className="w-3 h-3" />
             Strengths
           </div>
-          <div className="flex flex-wrap gap-2">
+          <ul className="space-y-1">
             {data.aiInsights.strengths.map((s) => (
-              <span
-                key={s}
-                className="px-3 py-1 rounded-lg bg-primary/10 border border-primary/20 text-[10px] font-bold"
-              >
+              <li key={s} className="text-[10px] font-bold list-disc list-inside">
                 {s}
-              </span>
+              </li>
             ))}
-          </div>
+          </ul>
         </motion.div>
 
         <motion.div
-          initial={{ x: -20, opacity: 0 }}
+          initial={{ x: 20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.7 }}
-          className="space-y-3"
+          className="space-y-3 p-4 rounded-2xl bg-destructive/10 border border-destructive/20"
         >
           <div className="flex items-center gap-2 text-destructive font-bold text-xs uppercase tracking-widest">
             <ShieldAlert className="w-3 h-3" />
             Weaknesses
           </div>
-          <div className="flex flex-wrap gap-2">
+          <ul className="space-y-1">
             {data.aiInsights.weaknesses.map((w) => (
-              <span
-                key={w}
-                className="px-3 py-1 rounded-lg bg-destructive/10 border border-destructive/20 text-[10px] font-bold"
-              >
+              <li key={w} className="text-[10px] font-bold list-disc list-inside">
                 {w}
-              </span>
+              </li>
             ))}
-          </div>
+          </ul>
         </motion.div>
       </div>
 

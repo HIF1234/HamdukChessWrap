@@ -20,6 +20,9 @@ export interface ChessGame {
   userColor: "white" | "black"
   userRating: number
   opponentRating: number
+  accuracy?: number // <CHANGE> Added accuracy field for game quality
+  moveCount?: number // <CHANGE> Added move count for game length analysis
+  ecoCode?: string // <CHANGE> Added ECO code for opening classification
 }
 
 export interface PlayerStats {
@@ -40,6 +43,17 @@ export interface PlayerStats {
   activeDays?: number
   mostActiveMonth?: string
   longestStreakDays?: number
+  // <CHANGE> Added comprehensive stats from requirements
+  firstGameDate?: Date
+  lastGameDate?: Date
+  bestWin?: { opponent: string; rating: number; date: Date }
+  worstLoss?: { opponent: string; rating: number; date: Date }
+  longestLosingStreak?: number
+  fastestWin?: { moves: number; time: string }
+  longestGame?: { moves: number; duration: string }
+  shortestGame?: { moves: number }
+  uniqueOpponents?: number
+  mostPlayedOpponent?: { name: string; games: number; wins: number; losses: number; draws: number }
 }
 
 export interface TimeControlStats {
@@ -50,6 +64,7 @@ export interface TimeControlStats {
   draws: number
   winRate: number
   averageRating: number
+  highestRating?: number // <CHANGE> Added highest rating per time control
 }
 
 export interface OpeningStats {
@@ -59,6 +74,8 @@ export interface OpeningStats {
   losses: number
   draws: number
   winRate: number
+  ecoCode?: string // <CHANGE> Added ECO code
+  asWhite?: boolean // <CHANGE> Track if opening is played as white or black
 }
 
 export interface ColorStats {
@@ -68,6 +85,7 @@ export interface ColorStats {
   losses: number
   draws: number
   winRate: number
+  favoriteOpening?: string // <CHANGE> Added favorite opening per color
 }
 
 export interface MonthlyActivity {
@@ -76,6 +94,18 @@ export interface MonthlyActivity {
   wins: number
   losses: number
   draws: number
+}
+
+// <CHANGE> Added new interface for time-based play habits
+export interface PlayHabits {
+  mostActiveDay: string
+  mostActiveHour: number
+  nightGames: number // 8PM - 6AM
+  dayGames: number
+  weekendGames: number
+  weekdayGames: number
+  hourlyDistribution: { hour: number; games: number }[]
+  dayOfWeekDistribution: { day: string; games: number }[]
 }
 
 export interface RatingProgression {
@@ -95,6 +125,13 @@ export interface PlaystyleAnalysis {
   comebackRate: number
   clutchWins: number
   tiltTendency: number
+  // <CHANGE> Added game quality metrics
+  averageAccuracy?: number
+  totalBlunders?: number
+  totalMistakes?: number
+  totalInaccuracies?: number
+  bestAccuracyGame?: number
+  worstAccuracyGame?: number
 }
 
 export interface AIInsights {
@@ -109,7 +146,7 @@ export interface AIInsights {
 }
 
 export interface HighlightGame {
-  type: "best" | "worst" | "brilliant"
+  type: "best" | "worst" | "brilliant" | "fastest" | "longest"
   game: ChessGame
   reason: string
   keyPosition?: string
@@ -124,6 +161,15 @@ export interface TrainingPlan {
   endgameTopics: string[]
 }
 
+// <CHANGE> Added new interface for achievements and milestones
+export interface Achievement {
+  type: "rating" | "streak" | "accuracy" | "opening" | "time_control"
+  title: string
+  description: string
+  earnedAt: Date
+  icon?: string
+}
+
 export interface ChessWrapData {
   player: PlayerStats
   timeControlBreakdown: TimeControlStats[]
@@ -135,6 +181,8 @@ export interface ChessWrapData {
   aiInsights: AIInsights
   highlights: HighlightGame[]
   trainingPlan: TrainingPlan[]
+  playHabits: PlayHabits // <CHANGE> Added play habits
+  achievements: Achievement[] // <CHANGE> Added achievements
   dateRange: {
     start: Date
     end: Date

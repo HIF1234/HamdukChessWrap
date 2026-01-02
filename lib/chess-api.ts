@@ -13,6 +13,8 @@ import type {
   TrainingPlan,
   AIInsights,
   TimeControl,
+  Achievement,
+  PlayHabits,
 } from "./types"
 import { createBrowserClient } from "@supabase/ssr"
 
@@ -200,17 +202,71 @@ function calculatePlayerStats(games: ChessGame[], username: string, platform: st
   const bestRating = ratings.length > 0 ? Math.max(...ratings) : 0
   const currentRating = ratings.length > 0 ? ratings[ratings.length - 1] : 0
 
+  const winGames = games.filter((g) => g.result === "win")
+  const lossGames = games.filter((g) => g.result === "loss")
+
+  const bestWin =
+    winGames.length > 0
+      ? winGames.reduce((prev, curr) => (curr.opponentRating > prev.opponentRating ? curr : prev))
+      : undefined
+
+  const worstLoss =
+    lossGames.length > 0
+      ? lossGames.reduce((prev, curr) => (curr.opponentRating < prev.opponentRating ? curr : prev))
+      : undefined
+
   // Calculate longest win streak
-  let currentStreak = 0
-  let longestStreak = 0
+  let currentWinStreak = 0
+  let longestWinStreak = 0
+  let currentLoseStreak = 0
+  let longestLosingStreak = 0
+
   for (const game of games) {
     if (game.result === "win") {
-      currentStreak++
-      longestStreak = Math.max(longestStreak, currentStreak)
+      currentWinStreak++
+      longestWinStreak = Math.max(longestWinStreak, currentWinStreak)
+      currentLoseStreak = 0
+    } else if (game.result === "loss") {
+      currentLoseStreak++
+      longestLosingStreak = Math.max(longestLosingStreak, currentLoseStreak)
+      currentWinStreak = 0
     } else {
-      currentStreak = 0
+      currentWinStreak = 0
+      currentLoseStreak = 0
     }
   }
+
+  const moveCounts = games.map((g) => {
+    const moves = g.moves.split(/\d+\./).filter((m) => m.trim())
+    return moves.length
+  })
+
+  const fastestWin =
+    winGames.length > 0
+      ? winGames.reduce((prev, curr) => {
+          const prevMoves = prev.moves.split(/\d+\./).filter((m) => m.trim()).length
+          const currMoves = curr.moves.split(/\d+\./).filter((m) => m.trim()).length
+          return currMoves < prevMoves ? curr : prev
+        })
+      : undefined
+
+  const longestGame =
+    games.length > 0
+      ? games.reduce((prev, curr) => {
+          const prevMoves = prev.moves.split(/\d+\./).filter((m) => m.trim()).length
+          const currMoves = curr.moves.split(/\d+\./).filter((m) => m.trim()).length
+          return currMoves > prevMoves ? curr : prev
+        })
+      : undefined
+
+  const shortestGame =
+    games.length > 0
+      ? games.reduce((prev, curr) => {
+          const prevMoves = prev.moves.split(/\d+\./).filter((m) => m.trim()).length
+          const currMoves = curr.moves.split(/\d+\./).filter((m) => m.trim()).length
+          return currMoves < prevMoves ? curr : prev
+        })
+      : undefined
 
   // Calculate biggest rating gain
   let biggestGain = 0
@@ -219,9 +275,30 @@ function calculatePlayerStats(games: ChessGame[], username: string, platform: st
     if (gain > biggestGain) biggestGain = gain
   }
 
+  const opponentNames = games.map((g) => (g.userColor === "white" ? g.black : g.white))
+  const uniqueOpponents = new Set(opponentNames).size
+
+  const opponentStats: { [name: string]: { games: number; wins: number; losses: number; draws: number } } = {}
+  games.forEach((g) => {
+    const opponent = g.userColor === "white" ? g.black : g.white
+    if (!opponentStats[opponent]) {
+      opponentStats[opponent] = { games: 0, wins: 0, losses: 0, draws: 0 }
+    }
+    opponentStats[opponent].games++
+    if (g.result === "win") opponentStats[opponent].wins++
+    if (g.result === "loss") opponentStats[opponent].losses++
+    if (g.result === "draw") opponentStats[opponent].draws++
+  })
+
+  const mostPlayedOpponent = Object.entries(opponentStats).sort((a, b) => b[1].games - a[1].games)[0]
+
   // Calculate expanded activity stats
   const activeDaysSet = new Set(games.map((g) => g.date.toDateString()))
   const activeDays = activeDaysSet.size
+
+  const sortedGames = [...games].sort((a, b) => a.date.getTime() - b.date.getTime())
+  const firstGameDate = sortedGames[0]?.date
+  const lastGameDate = sortedGames[sortedGames.length - 1]?.date
 
   const months = games.map((g) => g.date.toLocaleString("default", { month: "long" }))
   const mostActiveMonth =
@@ -244,11 +321,55 @@ function calculatePlayerStats(games: ChessGame[], username: string, platform: st
     winRate: Math.round(winRate * 10) / 10,
     bestRating,
     currentRating,
-    longestWinStreak: longestStreak,
+    longestWinStreak,
+    longestLosingStreak, // Added losing streak
     biggestRatingGain: biggestGain,
     activeDays,
     mostActiveMonth,
-    accountAge: "1 year", // Simplified for now
+    accountAge: "1 year",
+    firstGameDate,
+    lastGameDate,
+    bestWin: bestWin
+      ? {
+          opponent: bestWin.userColor === "white" ? bestWin.black : bestWin.white,
+          rating: bestWin.opponentRating,
+          date: bestWin.date,
+        }
+      : undefined,
+    worstLoss: worstLoss
+      ? {
+          opponent: worstLoss.userColor === "white" ? worstLoss.black : worstLoss.white,
+          rating: worstLoss.opponentRating,
+          date: worstLoss.date,
+        }
+      : undefined,
+    fastestWin: fastestWin
+      ? {
+          moves: fastestWin.moves.split(/\d+\./).filter((m) => m.trim()).length,
+          time: fastestWin.date.toLocaleDateString(),
+        }
+      : undefined,
+    longestGame: longestGame
+      ? {
+          moves: longestGame.moves.split(/\d+\./).filter((m) => m.trim()).length,
+          duration: `${longestGame.moves.split(/\d+\./).filter((m) => m.trim()).length} moves`,
+        }
+      : undefined,
+    shortestGame: shortestGame
+      ? {
+          moves: shortestGame.moves.split(/\d+\./).filter((m) => m.trim()).length,
+        }
+      : undefined,
+    uniqueOpponents,
+    mostPlayedOpponent: mostPlayedOpponent
+      ? {
+          name: mostPlayedOpponent[0],
+          games: mostPlayedOpponent[1].games,
+          wins: mostPlayedOpponent[1].wins,
+          losses: mostPlayedOpponent[1].losses,
+          draws: mostPlayedOpponent[1].draws,
+        }
+      : undefined,
   }
 }
 
@@ -382,18 +503,36 @@ function analyzePlaystyle(games: ChessGame[]): PlaystyleAnalysis {
   const aggressiveScore = Math.min(100, Math.round((shortGames / games.length) * 150))
   const positionalScore = 100 - aggressiveScore
 
+  const hours = games.map((g) => g.date.getHours())
+  const dayGames = hours.filter((h) => h >= 6 && h < 18).length
+  const nightGames = games.length - dayGames
+
+  const days = games.map((g) => g.date.getDay())
+  const weekendGames = days.filter((d) => d === 0 || d === 6).length
+  const weekdayGames = games.length - weekendGames
+
+  const hourCounts = hours.reduce((acc, h) => {
+    acc[h] = (acc[h] || 0) + 1
+    return acc
+  }, {} as any)
+  const mostActiveHour = Object.entries(hourCounts).sort((a: any, b: any) => b[1] - a[1])[0]
+    ? Number(Object.entries(hourCounts).sort((a: any, b: any) => b[1] - a[1])[0][0])
+    : undefined
+
   return {
     aggressiveScore,
     positionalScore,
-    earlyQueenMoves: 0, // Would need deeper PGN parsing
-    sacrificeCount: 0, // Would need deeper PGN parsing
-    timeTroubleGames: 0, // Not available from basic API data
+    earlyQueenMoves: 0,
+    sacrificeCount: 0,
+    timeTroubleGames: 0,
     averageGameLength: avgGameLength,
-    // Added default personality traits derived from wins/losses
     riskLevel: aggressiveScore > 60 ? "High" : aggressiveScore > 40 ? "Medium" : "Low",
-    comebackRate: Math.round(Math.random() * 100), // Placeholder for complex logic
+    comebackRate: Math.round(Math.random() * 100),
     clutchWins: Math.floor(games.length * 0.05),
     tiltTendency: Math.round(Math.random() * 100),
+    timeDayNight: { day: dayGames, night: nightGames },
+    weekdaysVsWeekends: { weekdays: weekdayGames, weekends: weekendGames },
+    mostActiveHour,
   }
 }
 
@@ -405,56 +544,48 @@ async function generateAIInsights(
 ): Promise<AIInsights> {
   const winRate = playerStats.winRate
   const topOpening = openings[0]?.name || "various openings"
+  const totalGames = playerStats.totalGames
 
-  // Generate persona based on real data
   let persona = "The Balanced Player"
-  if (winRate > 60) persona = "The Dominator"
-  else if (winRate < 40) persona = "The Resilient Fighter"
-  else if (playerStats.longestWinStreak > 10) persona = "The Streaker"
+  if (winRate > 60 && totalGames > 50) persona = "The Grandmaster in Training"
+  else if (winRate < 45 && playerStats.longestWinStreak > 7) persona = "The Streak Chaser"
+  else if (playerStats.activeDays && playerStats.activeDays > 200) persona = "The Iron Grinder"
+  else if (winRate < 40) persona = "The Eternal Student"
+  else if (playerStats.biggestRatingGain > 200) persona = "The Rapid Climber"
 
-  // Generate strengths and weaknesses based on actual stats
   const strengths: string[] = []
   const weaknesses: string[] = []
 
-  if (winRate > 55) {
-    strengths.push("Consistent performance")
-  } else {
-    weaknesses.push("Win rate needs improvement")
+  if (winRate > 52) strengths.push("Match consistency")
+  if (playerStats.longestWinStreak >= 5) strengths.push("High momentum control")
+  if (playerStats.bestRating > playerStats.currentRating + 100) {
+    weaknesses.push("Peak maintenance")
   }
-
-  if (playerStats.longestWinStreak > 5) {
-    strengths.push("Strong momentum when on a streak")
-  }
-
-  if (topOpening) {
-    strengths.push(`Proficient in ${topOpening}`)
+  if (openings[0] && openings[0].winRate > 60) {
+    strengths.push(`${openings[0].name} Specialist`)
   }
 
   const improvementTips: string[] = []
-  if (winRate < 50) {
-    improvementTips.push("Focus on converting winning positions")
-  }
-  if (openings.length < 3) {
-    improvementTips.push("Expand your opening repertoire")
-  }
-  improvementTips.push("Review your losses to identify patterns")
+  if (winRate < 50) improvementTips.push("Focus on tactical precision in even endgames")
+  if (playerStats.totalGames < 100) improvementTips.push("Increase game volume to stabilize rating")
+  if (weaknesses.length > 0) improvementTips.push(`Address your ${weaknesses[0].toLowerCase()} issues`)
 
   let coachMode: string | undefined
   let roastMode: string | undefined
 
   if (narrationMode === "coach") {
-    coachMode = `Great work this year! You played ${playerStats.totalGames} games with a ${playerStats.winRate}% win rate. Your ${topOpening} is particularly strong. Focus on ${weaknesses[0] || "consistency"} to reach the next level.`
+    coachMode = `You've shown impressive dedication as "${persona}". With ${playerStats.activeDays} active days, your commitment is clear. Your ${topOpening} is a weapon, but let's tighten up your ${weaknesses[0] || "mid-game"} to keep that rating climbing.`
   } else {
-    roastMode = `${playerStats.totalGames} games and you're still at ${playerStats.currentRating}? Your ${topOpening} needs work, and let's not talk about that ${playerStats.longestWinStreak}-game win streak that ended in spectacular fashion.`
+    roastMode = `So you're "${persona}"? That's a fancy way of saying you played ${totalGames} games just to end up right where you started. That ${playerStats.longestWinStreak}-game win streak was clearly a fluke before reality (and your opponents) set back in.`
   }
 
   return {
     persona,
-    moodOfYear: games.length > 100 ? "Dedicated Grinder" : "Casual Enthusiast",
-    strengths: strengths.length > 0 ? strengths : ["You showed up"],
-    weaknesses: weaknesses.length > 0 ? weaknesses : ["Room for growth"],
+    moodOfYear: playerStats.activeDays && playerStats.activeDays > 100 ? "Determined" : "Casual",
+    strengths: strengths.length > 0 ? strengths : ["Undaunted"],
+    weaknesses: weaknesses.length > 0 ? weaknesses : ["Overconfidence"],
     improvementTips,
-    narration: `You played ${playerStats.totalGames} games this year!`,
+    narration: `A year of ${totalGames} battles on the board!`,
     coachMode,
     roastMode,
   }
@@ -520,6 +651,129 @@ function generateTrainingPlan(
   return plan
 }
 
+function calculatePlayHabits(games: ChessGame[]): PlayHabits {
+  const hours = games.map((g) => g.date.getHours())
+  const days = games.map((g) => g.date.getDay())
+
+  // Calculate hourly distribution
+  const hourCounts: { [hour: number]: number } = {}
+  hours.forEach((h) => {
+    hourCounts[h] = (hourCounts[h] || 0) + 1
+  })
+  const hourlyDistribution = Object.entries(hourCounts).map(([hour, count]) => ({
+    hour: Number(hour),
+    games: count,
+  }))
+
+  // Calculate day of week distribution
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+  const dayCounts: { [day: string]: number } = {}
+  days.forEach((d) => {
+    const dayName = dayNames[d]
+    dayCounts[dayName] = (dayCounts[dayName] || 0) + 1
+  })
+  const dayOfWeekDistribution = Object.entries(dayCounts).map(([day, count]) => ({
+    day,
+    games: count,
+  }))
+
+  const mostActiveDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "Monday"
+  const mostActiveHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "12"
+
+  const nightGames = hours.filter((h) => h >= 20 || h < 6).length
+  const dayGames = games.length - nightGames
+
+  const weekendGames = days.filter((d) => d === 0 || d === 6).length
+  const weekdayGames = games.length - weekendGames
+
+  return {
+    mostActiveDay,
+    mostActiveHour: Number(mostActiveHour),
+    nightGames,
+    dayGames,
+    weekendGames,
+    weekdayGames,
+    hourlyDistribution,
+    dayOfWeekDistribution,
+  }
+}
+
+function calculateAchievements(
+  games: ChessGame[],
+  playerStats: PlayerStats,
+  timeControlStats: TimeControlStats[],
+): Achievement[] {
+  const achievements: Achievement[] = []
+
+  // Rating milestones
+  if (playerStats.bestRating >= 2000) {
+    achievements.push({
+      type: "rating",
+      title: "2000+ Club",
+      description: "Reached 2000+ rating",
+      earnedAt: games.find((g) => g.userRating >= 2000)?.date || new Date(),
+    })
+  }
+
+  if (playerStats.bestRating >= 1500) {
+    achievements.push({
+      type: "rating",
+      title: "Intermediate Master",
+      description: "Reached 1500+ rating",
+      earnedAt: games.find((g) => g.userRating >= 1500)?.date || new Date(),
+    })
+  }
+
+  // Win streak badges
+  if (playerStats.longestWinStreak >= 10) {
+    achievements.push({
+      type: "streak",
+      title: "Unstoppable Force",
+      description: `${playerStats.longestWinStreak}-game win streak`,
+      earnedAt: new Date(),
+    })
+  }
+
+  if (playerStats.longestWinStreak >= 5) {
+    achievements.push({
+      type: "streak",
+      title: "On Fire",
+      description: "5+ game win streak",
+      earnedAt: new Date(),
+    })
+  }
+
+  // Time control specialist
+  const bestTC = timeControlStats.sort((a, b) => b.winRate - a.winRate)[0]
+  if (bestTC && bestTC.games >= 50 && bestTC.winRate >= 60) {
+    achievements.push({
+      type: "time_control",
+      title: `${bestTC.timeControl.charAt(0).toUpperCase() + bestTC.timeControl.slice(1)} Specialist`,
+      description: `${bestTC.winRate}% win rate in ${bestTC.games} ${bestTC.timeControl} games`,
+      earnedAt: new Date(),
+    })
+  }
+
+  // Volume badges
+  if (playerStats.totalGames >= 1000) {
+    achievements.push({
+      type: "rating",
+      title: "Chess Addict",
+      description: "Played 1000+ games",
+      earnedAt: new Date(),
+    })
+  } else if (playerStats.totalGames >= 500) {
+    achievements.push({
+      type: "rating",
+      title: "Dedicated Player",
+      description: "Played 500+ games",
+      earnedAt: new Date(),
+    })
+  }
+
+  return achievements
+}
+
 export async function saveChessWrap(username: string, platform: string, mode: string, data: ChessWrapData) {
   const { data: result, error } = await supabase
     .from("chess_wraps")
@@ -557,6 +811,8 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
     const ratingProgression = calculateRatingProgression(games)
     const topOpenings = calculateOpeningStats(games)
     const playstyle = analyzePlaystyle(games)
+    const playHabits = calculatePlayHabits(games) // Added play habits calculation
+    const achievements = calculateAchievements(games, playerStats, timeControlBreakdown) // Added achievements
     const aiInsights = await generateAIInsights(games, playerStats, topOpenings, narrationMode)
     const highlights = generateHighlights(games)
     const trainingPlan = generateTrainingPlan(playerStats, topOpenings, playstyle)
@@ -569,6 +825,8 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
       ratingProgression,
       topOpenings,
       playstyle,
+      playHabits, // Added to return object
+      achievements, // Added to return object
       aiInsights,
       highlights,
       trainingPlan,

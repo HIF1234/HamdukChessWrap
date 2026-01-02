@@ -12,6 +12,15 @@ export function ShareSlide({ data, shareId }: { data: ChessWrapData; shareId: st
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/?id=${shareId}` : ""
 
   const handleShare = () => {
+    if (!shareId) {
+      toast({
+        title: "Sharing not ready",
+        description: "Please wait while we generate your unique URL.",
+        variant: "destructive",
+      })
+      return
+    }
+
     if (navigator.share) {
       navigator.share({
         title: `My Hamduk Chess Wrap 2025 - ${data.player.username}`,
