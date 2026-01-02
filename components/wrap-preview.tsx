@@ -6,6 +6,9 @@ import { X, Play, Pause, Share2, Volume2, VolumeX } from "lucide-react"
 import type { ChessWrapData } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { IntroSlide } from "@/components/slides/intro-slide"
+import { ProfileSlide } from "@/components/slides/profile-slide"
+import { JourneySlide } from "@/components/slides/journey-slide"
+import { MatchupsSlide } from "@/components/slides/matchups-slide" // Added matchups slide
 import { StatsSlide } from "@/components/slides/stats-slide"
 import { RatingSlide } from "@/components/slides/rating-slide"
 import { OpeningSlide } from "@/components/slides/opening-slide"
@@ -34,6 +37,9 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
 
   const slides = [
     { id: "intro", component: IntroSlide },
+    { id: "profile", component: ProfileSlide },
+    { id: "journey", component: JourneySlide },
+    { id: "matchups", component: MatchupsSlide }, // Added matchups slide
     { id: "stats", component: StatsSlide },
     { id: "rating", component: RatingSlide },
     { id: "opening", component: OpeningSlide },

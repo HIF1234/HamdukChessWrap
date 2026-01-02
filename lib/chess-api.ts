@@ -29,6 +29,7 @@ export async function fetchChessDotComGames(username: string, year: number): Pro
     if (!profileResponse.ok) {
       throw new Error("User not found on Chess.com")
     }
+    const profileData = await profileResponse.json()
 
     // Fetch games for each month of the specified year
     for (let month = 1; month <= 12; month++) {
@@ -101,6 +102,7 @@ export async function fetchLichessGames(username: string, year: number): Promise
     if (!profileResponse.ok) {
       throw new Error("User not found on Lichess")
     }
+    const profileData = await profileResponse.json()
 
     const startDate = new Date(year, 0, 1).getTime()
     const endDate = new Date(year, 11, 31, 23, 59, 59).getTime()
@@ -192,7 +194,41 @@ function extractOpening(pgn: string): string {
   return "Unknown Opening"
 }
 
-function calculatePlayerStats(games: ChessGame[], username: string, platform: string): PlayerStats {
+async function fetchChessDotComProfile(username: string) {
+  try {
+    const response = await fetch(`https://api.chess.com/pub/player/${username}`)
+    if (response.ok) {
+      const data = await response.json()
+      return {
+        country: data.country ? data.country.split('/').pop()?.toUpperCase() : undefined,
+        title: data.title || undefined,
+        joined: data.joined ? new Date(data.joined * 1000) : undefined,
+      }
+    }
+  } catch (error) {
+    console.error("[v0] Failed to fetch Chess.com profile:", error)
+  }
+  return {}
+}
+
+async function fetchLichessProfile(username: string) {
+  try {
+    const response = await fetch(`https://lichess.org/api/user/${username}`)
+    if (response.ok) {
+      const data = await response.json()
+      return {
+        country: data.profile?.country || undefined,
+        title: data.title || undefined,
+        joined: data.createdAt ? new Date(data.createdAt) : undefined,
+      }
+    }
+  } catch (error) {
+    console.error("[v0] Failed to fetch Lichess profile:", error)
+  }
+  return {}
+}
+
+function calculatePlayerStats(games: ChessGame[], username: string, platform: string, profile?: any): PlayerStats {
   const wins = games.filter((g) => g.result === "win").length
   const losses = games.filter((g) => g.result === "loss").length
   const draws = games.filter((g) => g.result === "draw").length
@@ -233,6 +269,25 @@ function calculatePlayerStats(games: ChessGame[], username: string, platform: st
     } else {
       currentWinStreak = 0
       currentLoseStreak = 0
+    }
+  }
+
+  const sortedByDate = [...games].sort((a, b) => a.date.getTime() - b.date.getTime())
+  const uniqueDays = Array.from(new Set(sortedByDate.map((g) => g.date.toDateString()))).sort()
+  
+  let currentStreak = 1
+  let longestStreakDays = 1
+  
+  for (let i = 1; i < uniqueDays.length; i++) {
+    const prevDate = new Date(uniqueDays[i - 1])
+    const currDate = new Date(uniqueDays[i])
+    const dayDiff = Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24))
+    
+    if (dayDiff === 1) {
+      currentStreak++
+      longestStreakDays = Math.max(longestStreakDays, currentStreak)
+    } else {
+      currentStreak = 1
     }
   }
 
@@ -311,6 +366,13 @@ function calculatePlayerStats(games: ChessGame[], username: string, platform: st
         ).sort((a, b) => (b[1] as number) - (a[1] as number))[0][0]
       : undefined
 
+  let accountAge = "Unknown"
+  if (profile?.joined) {
+    const years = Math.floor((Date.now() - profile.joined.getTime()) / (1000 * 60 * 60 * 24 * 365))
+    const months = Math.floor(((Date.now() - profile.joined.getTime()) % (1000 * 60 * 60 * 24 * 365)) / (1000 * 60 * 60 * 24 * 30))
+    accountAge = years > 0 ? `${years}y ${months}m` : `${months}m`
+  }
+
   return {
     username,
     platform: platform as any,
@@ -322,11 +384,14 @@ function calculatePlayerStats(games: ChessGame[], username: string, platform: st
     bestRating,
     currentRating,
     longestWinStreak,
-    longestLosingStreak, // Added losing streak
+    longestLosingStreak,
     biggestRatingGain: biggestGain,
     activeDays,
     mostActiveMonth,
-    accountAge: "1 year",
+    accountAge, // Now calculated from profile
+    country: profile?.country, // Added country from profile
+    title: profile?.title, // Added title from profile
+    longestStreakDays, // Added playing streak
     firstGameDate,
     lastGameDate,
     bestWin: bestWin
@@ -698,10 +763,10 @@ function calculatePlayHabits(games: ChessGame[]): PlayHabits {
   }
 }
 
-function calculateAchievements(
+function generateAchievements(
   games: ChessGame[],
   playerStats: PlayerStats,
-  timeControlStats: TimeControlStats[],
+  playstyleAnalysis: PlaystyleAnalysis,
 ): Achievement[] {
   const achievements: Achievement[] = []
 
@@ -743,17 +808,6 @@ function calculateAchievements(
     })
   }
 
-  // Time control specialist
-  const bestTC = timeControlStats.sort((a, b) => b.winRate - a.winRate)[0]
-  if (bestTC && bestTC.games >= 50 && bestTC.winRate >= 60) {
-    achievements.push({
-      type: "time_control",
-      title: `${bestTC.timeControl.charAt(0).toUpperCase() + bestTC.timeControl.slice(1)} Specialist`,
-      description: `${bestTC.winRate}% win rate in ${bestTC.games} ${bestTC.timeControl} games`,
-      earnedAt: new Date(),
-    })
-  }
-
   // Volume badges
   if (playerStats.totalGames >= 1000) {
     achievements.push({
@@ -791,54 +845,60 @@ export async function getChessWrapById(id: string) {
   return data
 }
 
-export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapData | null> {
-  const { username, platform, year = 2025, narrationMode = "coach" } = config
+export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapData> {
+  const { username, platform, year = new Date().getFullYear(), narrationMode = "coach" } = config
+
+  let games: ChessGame[] = []
+  let profile: any = {}
 
   try {
-    // Fetch real games from the appropriate platform
-    const games =
-      platform === "chess.com" ? await fetchChessDotComGames(username, year) : await fetchLichessGames(username, year)
-
-    if (!games || games.length === 0) {
-      throw new Error("No games found for this user in 2025")
+    if (platform === "chess.com") {
+      profile = await fetchChessDotComProfile(username)
+      games = await fetchChessDotComGames(username, year)
+    } else if (platform === "lichess") {
+      profile = await fetchLichessProfile(username)
+      games = await fetchLichessGames(username, year)
+    } else {
+      throw new Error(`Unsupported platform: ${platform}`)
     }
 
-    // Calculate all statistics from real data
-    const playerStats = calculatePlayerStats(games, username, platform)
-    const timeControlBreakdown = calculateTimeControlStats(games)
+    if (games.length === 0) {
+      throw new Error(`No games found for ${username} on ${platform} in ${year}`)
+    }
+
+    const playerStats = calculatePlayerStats(games, username, platform, profile) // Pass profile data
+    const timeControlStats = calculateTimeControlStats(games)
+    const openingStats = calculateOpeningStats(games)
     const colorStats = calculateColorStats(games)
     const monthlyActivity = calculateMonthlyActivity(games)
     const ratingProgression = calculateRatingProgression(games)
-    const topOpenings = calculateOpeningStats(games)
-    const playstyle = analyzePlaystyle(games)
-    const playHabits = calculatePlayHabits(games) // Added play habits calculation
-    const achievements = calculateAchievements(games, playerStats, timeControlBreakdown) // Added achievements
-    const aiInsights = await generateAIInsights(games, playerStats, topOpenings, narrationMode)
+    const playstyleAnalysis = analyzePlaystyle(games)
     const highlights = generateHighlights(games)
-    const trainingPlan = generateTrainingPlan(playerStats, topOpenings, playstyle)
+    const trainingPlan = generateTrainingPlan(playerStats, openingStats, playstyleAnalysis)
+    const aiInsights = await generateAIInsights(games, playerStats, openingStats, narrationMode)
+    const playHabits = calculatePlayHabits(games)
+    const achievements = generateAchievements(games, playerStats, playstyleAnalysis)
 
-    const wrapData: ChessWrapData = {
+    return {
       player: playerStats,
-      timeControlBreakdown,
+      timeControlBreakdown: timeControlStats,
       colorStats,
       monthlyActivity,
       ratingProgression,
-      topOpenings,
-      playstyle,
-      playHabits, // Added to return object
-      achievements, // Added to return object
+      topOpenings: openingStats,
+      playstyle: playstyleAnalysis,
       aiInsights,
       highlights,
       trainingPlan,
+      playHabits,
+      achievements,
       dateRange: {
-        start: new Date(year, 0, 1),
-        end: new Date(year, 11, 31),
+        start: games[0].date,
+        end: games[games.length - 1].date,
       },
     }
-
-    return wrapData
   } catch (error) {
-    console.error("[v0] Failed to generate chess wrap:", error)
-    return null
+    console.error("[v0] Error generating chess wrap:", error)
+    throw error
   }
 }
