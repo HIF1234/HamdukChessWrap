@@ -1,8 +1,8 @@
-export type Platform = 'chess.com' | 'lichess' | 'pgn'
+export type Platform = "chess.com" | "lichess" | "pgn"
 
-export type TimeControl = 'bullet' | 'blitz' | 'rapid' | 'classical'
+export type TimeControl = "bullet" | "blitz" | "rapid" | "classical"
 
-export type GameResult = 'win' | 'loss' | 'draw'
+export type GameResult = "win" | "loss" | "draw"
 
 export interface ChessGame {
   id: string
@@ -17,7 +17,7 @@ export interface ChessGame {
   opening: string
   termination: string
   pgn: string
-  userColor: 'white' | 'black'
+  userColor: "white" | "black"
   userRating: number
   opponentRating: number
 }
@@ -34,6 +34,12 @@ export interface PlayerStats {
   currentRating: number
   longestWinStreak: number
   biggestRatingGain: number
+  accountAge?: string
+  country?: string
+  title?: string
+  activeDays?: number
+  mostActiveMonth?: string
+  longestStreakDays?: number
 }
 
 export interface TimeControlStats {
@@ -56,7 +62,7 @@ export interface OpeningStats {
 }
 
 export interface ColorStats {
-  color: 'white' | 'black'
+  color: "white" | "black"
   games: number
   wins: number
   losses: number
@@ -79,12 +85,16 @@ export interface RatingProgression {
 }
 
 export interface PlaystyleAnalysis {
-  aggressiveScore: number // 0-100
-  positionalScore: number // 0-100
+  aggressiveScore: number
+  positionalScore: number
   earlyQueenMoves: number
   sacrificeCount: number
   timeTroubleGames: number
   averageGameLength: number
+  riskLevel: "Low" | "Medium" | "High"
+  comebackRate: number
+  clutchWins: number
+  tiltTendency: number
 }
 
 export interface AIInsights {
@@ -99,7 +109,7 @@ export interface AIInsights {
 }
 
 export interface HighlightGame {
-  type: 'best' | 'worst' | 'brilliant'
+  type: "best" | "worst" | "brilliant"
   game: ChessGame
   reason: string
   keyPosition?: string
@@ -137,5 +147,5 @@ export interface WrapConfig {
   year?: number
   startDate?: Date
   endDate?: Date
-  narrationMode?: 'coach' | 'roast' | 'neutral'
+  narrationMode?: "coach" | "roast" | "neutral"
 }

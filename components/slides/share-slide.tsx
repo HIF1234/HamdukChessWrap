@@ -14,8 +14,8 @@ export function ShareSlide({ data, shareId }: { data: ChessWrapData; shareId: st
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: "My Hamduk Chess Wrap 2025",
-        text: `I played ${data.player.totalGames} games this year! Check out my wrap.`,
+        title: `My Hamduk Chess Wrap 2025 - ${data.player.username}`,
+        text: `I played ${data.player.totalGames} games this year with a ${data.player.winRate}% win rate! Check out my full Chess Wrap.`,
         url: shareUrl,
       })
     } else {

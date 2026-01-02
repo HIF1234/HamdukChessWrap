@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Play, Pause, Share2 } from "lucide-react"
+import { X, Play, Pause, Share2, Volume2, VolumeX } from "lucide-react"
 import type { ChessWrapData } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { IntroSlide } from "@/components/slides/intro-slide"
@@ -10,7 +10,8 @@ import { StatsSlide } from "@/components/slides/stats-slide"
 import { RatingSlide } from "@/components/slides/rating-slide"
 import { OpeningSlide } from "@/components/slides/opening-slide"
 import { PlaystyleSlide } from "@/components/slides/playstyle-slide"
-import { InsightsSlide } from "@/components/slides/insights-slide" // imported insights slide
+import { HabitsSlide } from "@/components/slides/habits-slide" // added habits slide import
+import { InsightsSlide } from "@/components/slides/insights-slide"
 import { HighlightSlide } from "@/components/slides/highlight-slide" // added highlight slide
 import { CoachingSlide } from "@/components/slides/coaching-slide" // added coaching slide
 import { ShareSlide } from "@/components/slides/share-slide" // added share slide import
@@ -25,6 +26,7 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [progress, setProgress] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
+  const [isMuted, setIsMuted] = useState(false) // added mute state
 
   const slides = [
     { id: "intro", component: IntroSlide },
@@ -32,6 +34,7 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
     { id: "rating", component: RatingSlide },
     { id: "opening", component: OpeningSlide },
     { id: "playstyle", component: PlaystyleSlide },
+    { id: "habits", component: HabitsSlide }, // added habits slide to sequence
     { id: "insights", component: InsightsSlide },
     { id: "highlights", component: HighlightSlide }, // added to sequence
     { id: "coaching", component: CoachingSlide }, // added to sequence
@@ -63,10 +66,37 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
   }, [currentSlide, totalSlides, isPaused])
 
   useEffect(() => {
-    const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3")
-    audio.volume = 0.2
-    audio.play().catch(() => {}) // Handle autoplay restrictions
-  }, [currentSlide])
+    const ambientAudio = new Audio("https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3")
+    ambientAudio.volume = isMuted ? 0 : 0.15
+    ambientAudio.loop = true
+
+    const playAudio = async () => {
+      try {
+        if (!isPaused) {
+          await ambientAudio.play()
+        } else {
+          ambientAudio.pause()
+        }
+      } catch (err) {
+        console.log("[v0] Audio playback failed:", err)
+      }
+    }
+
+    playAudio()
+
+    return () => {
+      ambientAudio.pause()
+      ambientAudio.currentTime = 0
+    }
+  }, [isMuted, isPaused])
+
+  useEffect(() => {
+    if (currentSlide > 0 && !isMuted) {
+      const transitionSfx = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3")
+      transitionSfx.volume = 0.1
+      transitionSfx.play().catch(() => {})
+    }
+  }, [currentSlide, isMuted])
 
   const nextSlide = () => {
     if (currentSlide < totalSlides - 1) {
@@ -114,6 +144,14 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsMuted(!isMuted)}
+            className="rounded-full bg-black/20 backdrop-blur-md border border-white/10 hover:bg-black/40"
+          >
+            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </Button>
           <Button
             variant="ghost"
             size="icon"
