@@ -119,7 +119,7 @@ export default function LandingPage() {
           <div className="flex flex-col items-center gap-2 mb-4">
             <p className="text-xs font-bold uppercase tracking-widest text-primary/60">A Subsidiary of</p>
             <a
-              href="https://hamdukchess.vercel.app"
+              href="https://chess.hamduk.com.ng/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-2xl font-black italic hover:text-primary transition-colors"
@@ -135,7 +135,7 @@ export default function LandingPage() {
             <a href="/terms" className="hover:text-primary transition-colors">
               Terms of Service
             </a>
-            <a href="https://chess.hamduk.com.ng/" className="hover:text-primary transition-colors">
+            <a href="https://chess.hamduk.com.ng/contact" className="hover:text-primary transition-colors">
               Contact Us
             </a>
           </div>
