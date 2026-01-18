@@ -135,7 +135,7 @@ export default function LandingPage() {
             <a href="/terms" className="hover:text-primary transition-colors">
               Terms of Service
             </a>
-            <a href="https://hamdukchess.vercel.app" className="hover:text-primary transition-colors">
+            <a href="https://chess.hamduk.com.ng/" className="hover:text-primary transition-colors">
               Contact Us
             </a>
           </div>
