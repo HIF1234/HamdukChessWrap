@@ -766,6 +766,121 @@ function estimateACPL(game: ChessGame): number {
   return baseACPL + (Math.random() * 30 - 15)
 }
 
+// Calculate performance highlights
+function calculatePerformanceHighlights(games: ChessGame[]): {
+  longestWinStreak: number
+  longestLosingStreak: number
+  fastestWin: { moves: number; game: ChessGame } | null
+  longestGame: { moves: number; game: ChessGame } | null
+  shortestGame: { moves: number; game: ChessGame } | null
+  mostMovesGame: { moves: number; game: ChessGame } | null
+  mostTimeGame: { game: ChessGame; duration: number } | null
+} {
+  let maxWinStreak = 0
+  let currentWinStreak = 0
+  let maxLossStreak = 0
+  let currentLossStreak = 0
+
+  let fastestWinMoves = Infinity
+  let fastestWinGame: ChessGame | null = null
+
+  let longestGameMoves = 0
+  let longestGameObj: ChessGame | null = null
+
+  let shortestGameMoves = Infinity
+  let shortestGameObj: ChessGame | null = null
+
+  let mostMovesCount = 0
+  let mostMovesGame: ChessGame | null = null
+
+  let maxGameTime = 0
+  let maxTimeGame: ChessGame | null = null
+
+  for (const game of games) {
+    // Track win/loss streaks
+    if (game.result === "win") {
+      currentWinStreak++
+      maxWinStreak = Math.max(maxWinStreak, currentWinStreak)
+      currentLossStreak = 0
+    } else if (game.result === "loss") {
+      currentLossStreak++
+      maxLossStreak = Math.max(maxLossStreak, currentLossStreak)
+      currentWinStreak = 0
+    } else {
+      // Draw resets both streaks
+      currentWinStreak = 0
+      currentLossStreak = 0
+    }
+
+    // Extract move count from PGN
+    const moveCount = extractMoveCount(game.pgn)
+
+    // Track fastest win
+    if (game.result === "win" && moveCount < fastestWinMoves) {
+      fastestWinMoves = moveCount
+      fastestWinGame = game
+    }
+
+    // Track longest and shortest games
+    if (moveCount > longestGameMoves) {
+      longestGameMoves = moveCount
+      longestGameObj = game
+    }
+
+    if (moveCount < shortestGameMoves && moveCount > 0) {
+      shortestGameMoves = moveCount
+      shortestGameObj = game
+    }
+
+    // Track most moves in a game
+    if (moveCount > mostMovesCount) {
+      mostMovesCount = moveCount
+      mostMovesGame = game
+    }
+
+    // Track most time spent in one game (estimate from move count)
+    const estimatedTime = estimateGameDuration(moveCount, game.timeControl)
+    if (estimatedTime > maxGameTime) {
+      maxGameTime = estimatedTime
+      maxTimeGame = game
+    }
+  }
+
+  return {
+    longestWinStreak: maxWinStreak,
+    longestLosingStreak: maxLossStreak,
+    fastestWin: fastestWinGame ? { moves: fastestWinMoves, game: fastestWinGame } : null,
+    longestGame: longestGameObj ? { moves: longestGameMoves, game: longestGameObj } : null,
+    shortestGame: shortestGameObj ? { moves: shortestGameMoves, game: shortestGameObj } : null,
+    mostMovesGame: mostMovesGame ? { moves: mostMovesCount, game: mostMovesGame } : null,
+    mostTimeGame: maxTimeGame ? { game: maxTimeGame, duration: maxGameTime } : null,
+  }
+}
+
+// Extract move count from PGN
+function extractMoveCount(pgn: string): number {
+  // Find the move count from the end of PGN (format: "1. e4 e5 2. ...")
+  const movesMatch = pgn.match(/(\d+)\.\s+\S+/)
+  if (!movesMatch) return 0
+
+  // Count the total moves (rough estimate: count all space-separated tokens after first move)
+  const movesSection = pgn.split("\n\n").pop() || ""
+  const moves = movesSection.split(/\s+/).filter((m) => !m.includes(".") && m.length > 1)
+  return Math.ceil(moves.length / 2) // Each full round has 2 half-moves
+}
+
+// Estimate game duration in minutes
+function estimateGameDuration(moveCount: number, timeControl: TimeControl): number {
+  const averageMoveTime: Record<TimeControl, number> = {
+    bullet: 0.5,
+    blitz: 1.5,
+    rapid: 3,
+    classical: 5,
+  }
+
+  return moveCount * averageMoveTime[timeControl]
+}
+
 function calculateColorStats(games: ChessGame[]): ColorStats[] {
   const white = { games: 0, wins: 0, losses: 0, draws: 0 }
   const black = { games: 0, wins: 0, losses: 0, draws: 0 }

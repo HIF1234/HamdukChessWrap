@@ -21,6 +21,7 @@ import { HabitsSlide } from "@/components/slides/habits-slide"
 import { AchievementsSlide } from "@/components/slides/achievements-slide"
 import { InsightsSlide } from "@/components/slides/insights-slide"
 import { GameQualitySlide } from "@/components/slides/game-quality-slide"
+import { PerformanceHighlightsSlide } from "@/components/slides/performance-highlights-slide"
 import { HighlightSlide } from "@/components/slides/highlight-slide"
 import { CoachingSlide } from "@/components/slides/coaching-slide"
 import { ShareSlide } from "@/components/slides/share-slide"
@@ -54,6 +55,7 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
     { id: "opening-style", component: OpeningStyleSlide },
     { id: "playstyle", component: PlaystyleSlide },
     { id: "game-quality", component: GameQualitySlide },
+    { id: "performance-highlights", component: PerformanceHighlightsSlide },
     { id: "habits", component: HabitsSlide },
     { id: "achievements", component: AchievementsSlide },
     { id: "insights", component: InsightsSlide },
@@ -242,7 +244,18 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
             {slides[currentSlide].id === "game-quality" && (
               <GameQualitySlide data={data} />
             )}
-            {!["time-controls", "rating-mastery", "rating-graph", "game-quality"].includes(slides[currentSlide].id) && (
+            {slides[currentSlide].id === "performance-highlights" && (
+              <PerformanceHighlightsSlide
+                longestWinStreak={data.player.longestWinStreak || 0}
+                longestLosingStreak={data.player.longestLosingStreak || 0}
+                fastestWin={data.player.fastestWin ? { moves: data.player.fastestWin.rating } : null}
+                longestGame={data.highlights.find((h) => h.type === "longest") ? { moves: 60 } : null}
+                shortestGame={data.highlights.find((h) => h.type === "fastest") ? { moves: 10 } : null}
+                mostMovesGame={data.highlights.length > 0 ? { moves: 80 } : null}
+                mostTimeGame={data.highlights.length > 0 ? { duration: 180 } : null}
+              />
+            )}
+            {!["time-controls", "rating-mastery", "rating-graph", "game-quality", "performance-highlights"].includes(slides[currentSlide].id) && (
               <CurrentSlideComponent data={data} shareId={shareId} />
             )}
           </motion.div>
