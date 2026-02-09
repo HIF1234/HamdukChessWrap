@@ -15,6 +15,7 @@ import { RatingMasterySlide } from "@/components/slides/rating-mastery-slide"
 import { RatingGraphSlide } from "@/components/slides/rating-graph-slide"
 import { RatingSlide } from "@/components/slides/rating-slide"
 import { OpeningSlide } from "@/components/slides/opening-slide"
+import { OpeningStyleSlide } from "@/components/slides/opening-style-slide"
 import { PlaystyleSlide } from "@/components/slides/playstyle-slide"
 import { HabitsSlide } from "@/components/slides/habits-slide"
 import { AchievementsSlide } from "@/components/slides/achievements-slide"
@@ -49,6 +50,7 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
     { id: "rating-graph", component: RatingGraphSlide },
     { id: "rating", component: RatingSlide },
     { id: "opening", component: OpeningSlide },
+    { id: "opening-style", component: OpeningStyleSlide },
     { id: "playstyle", component: PlaystyleSlide },
     { id: "habits", component: HabitsSlide },
     { id: "achievements", component: AchievementsSlide },

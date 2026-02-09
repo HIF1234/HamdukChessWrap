@@ -282,13 +282,96 @@ function determineTimeControl(timeClass: string): TimeControl {
 
 // Helper function to extract opening from PGN
 function extractOpening(pgn: string): string {
-  const openingMatch = pgn.match(/\[ECO "([^"]+)"\]/)
-  if (openingMatch) return openingMatch[1]
-
   const openingNameMatch = pgn.match(/\[Opening "([^"]+)"\]/)
   if (openingNameMatch) return openingNameMatch[1]
 
+  const openingMatch = pgn.match(/\[ECO "([^"]+)"\]/)
+  if (openingMatch) return openingMatch[1]
+
   return "Unknown Opening"
+}
+
+// Helper function to extract ECO code from PGN
+function extractEcoCode(pgn: string): string | undefined {
+  const ecoMatch = pgn.match(/\[ECO "([^"]+)"\]/)
+  return ecoMatch ? ecoMatch[1] : undefined
+}
+
+// ECO Code to Human Readable Opening Name
+const ECO_TO_OPENING: Record<string, string> = {
+  "A00": "Irregular Opening",
+  "A01": "Larsen's Opening",
+  "A02": "Bird's Opening",
+  "A04": "Reti Opening",
+  "A40": "Queen's Pawn Game",
+  "A43": "Old Indian Defense",
+  "A45": "Trompowsky Attack",
+  "B00": "King's Pawn Opening",
+  "B01": "Scandinavian Defense",
+  "B02": "Alekhine's Defense",
+  "B06": "Modern Defense",
+  "B10": "Caro-Kann Defense",
+  "B12": "Caro-Kann Defense - Advance Variation",
+  "B15": "Caro-Kann Defense - Slav Variation",
+  "B20": "Sicilian Defense",
+  "B30": "Sicilian Defense - Closed",
+  "B40": "Sicilian Defense - Unusual Variations",
+  "B50": "Sicilian Defense - Anti-6.Bg5 Lines",
+  "B60": "Sicilian Defense - Richter-Rauzer",
+  "B80": "Sicilian Defense - Open",
+  "B90": "Sicilian Defense - Najdorf",
+  "C00": "French Defense",
+  "C10": "French Defense - Advanced Variation",
+  "C40": "King's Pawn Game",
+  "C42": "Russian Game (Petrov's Defense)",
+  "C50": "Italian Game",
+  "C60": "Ruy Lopez",
+  "C80": "Ruy Lopez - Open",
+  "D00": "Closed Game",
+  "D04": "Queen's Pawn Game",
+  "D10": "Slav Defense",
+  "D30": "Semi-Slav Defense",
+  "D40": "Semi-Slav Defense",
+  "D50": "Semi-Slav Defense",
+  "D60": "Queen's Gambit Declined",
+  "D80": "Queen's Gambit - Slav",
+  "E00": "Queen's Pawn Game",
+  "E10": "Queen's Pawn Game",
+  "E20": "Nimzo-Indian Defense",
+  "E60": "King's Indian Defense",
+  "E70": "King's Indian Defense",
+  "E80": "King's Indian Attack",
+}
+
+function getOpeningName(ecoCode?: string): string {
+  if (!ecoCode) return "Unknown Opening"
+  
+  // Check for exact match
+  if (ECO_TO_OPENING[ecoCode]) return ECO_TO_OPENING[ecoCode]
+  
+  // Check for range match (first 2 chars)
+  const prefix = ecoCode.substring(0, 3)
+  if (ECO_TO_OPENING[prefix]) return ECO_TO_OPENING[prefix]
+  
+  return ecoCode
+}
+
+// Detect gambits from opening
+function isGambit(opening: string, ecoCode?: string): boolean {
+  const gambitKeywords = [
+    "gambit",
+    "sacrifice",
+    "evan's",
+    "king's gambit",
+    "queen's gambit",
+    "danish",
+    "acceptance",
+    "declined",
+  ]
+
+  const lowerOpening = opening.toLowerCase()
+  return gambitKeywords.some((keyword) => lowerOpening.includes(keyword)) || 
+         (ecoCode && (ecoCode.startsWith("C3") || ecoCode.startsWith("C4") || ecoCode.startsWith("C5")))
 }
 
 async function fetchChessDotComProfile(username: string) {
@@ -536,12 +619,37 @@ function calculatePlayerStats(games: ChessGame[], username: string, platform: st
 }
 
 function calculateOpeningStats(games: ChessGame[]): OpeningStats[] {
-  const stats = new Map<string, { games: number; wins: number; losses: number; draws: number }>()
+  const stats = new Map<
+    string,
+    {
+      name: string
+      games: number
+      wins: number
+      losses: number
+      draws: number
+      ecoCode?: string
+      asWhite?: number
+      asBlack?: number
+      isGambit?: boolean
+    }
+  >()
 
   for (const game of games) {
-    const opening = game.opening || "Unknown Opening"
+    const ecoCode = extractEcoCode(game.pgn)
+    const opening = game.opening || getOpeningName(ecoCode) || "Unknown Opening"
+    
     if (!stats.has(opening)) {
-      stats.set(opening, { games: 0, wins: 0, losses: 0, draws: 0 })
+      stats.set(opening, {
+        name: opening,
+        games: 0,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        ecoCode,
+        asWhite: 0,
+        asBlack: 0,
+        isGambit: isGambit(opening, ecoCode),
+      })
     }
 
     const stat = stats.get(opening)!
@@ -549,19 +657,21 @@ function calculateOpeningStats(games: ChessGame[]): OpeningStats[] {
     if (game.result === "win") stat.wins++
     if (game.result === "loss") stat.losses++
     if (game.result === "draw") stat.draws++
+    
+    if (game.userColor === "white") {
+      stat.asWhite = (stat.asWhite || 0) + 1
+    } else {
+      stat.asBlack = (stat.asBlack || 0) + 1
+    }
   }
 
-  return Array.from(stats.entries())
-    .map(([name, data]) => ({
-      name,
-      games: data.games,
-      wins: data.wins,
-      losses: data.losses,
-      draws: data.draws,
+  return Array.from(stats.values())
+    .map((data) => ({
+      ...data,
       winRate: Math.round((data.wins / data.games) * 1000) / 10,
     }))
     .sort((a, b) => b.games - a.games)
-    .slice(0, 5)
+    .slice(0, 10)
 }
 
 function calculateColorStats(games: ChessGame[]): ColorStats[] {
