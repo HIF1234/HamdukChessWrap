@@ -90,18 +90,35 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
     const playAudio = async () => {
       try {
         if (!isPaused && !isMuted) {
-          await ambientAudio.play()
+          const playPromise = ambientAudio.play()
+          if (playPromise !== undefined) {
+            playPromise.catch(() => {
+              // Autoplay prevented, user interaction required
+            })
+          }
         } else {
           ambientAudio.pause()
         }
       } catch (err) {
-        console.log("[v0] Audio playback failed:", err)
+        // Silently fail if autoplay is not allowed
       }
     }
 
     playAudio()
 
+    // Allow user interaction to enable autoplay
+    const handleUserInteraction = () => {
+      if (!isPaused && !isMuted) {
+        ambientAudio.play().catch(() => {})
+      }
+    }
+
+    document.addEventListener("click", handleUserInteraction, { once: true })
+    document.addEventListener("touchstart", handleUserInteraction, { once: true })
+
     return () => {
+      document.removeEventListener("click", handleUserInteraction)
+      document.removeEventListener("touchstart", handleUserInteraction)
       ambientAudio.pause()
       ambientAudio.currentTime = 0
     }

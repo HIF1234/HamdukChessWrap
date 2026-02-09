@@ -33,7 +33,7 @@ export function RatingGraphSlide({ ratingProgression }: RatingGraphSlideProps) {
   const weekMap = new Map<string, Record<TimeControl, number>>()
 
   for (const prog of ratingProgression) {
-    const date = new Date(prog.date)
+    const date = prog.date instanceof Date ? prog.date : new Date(prog.date)
     const weekStart = new Date(date)
     weekStart.setDate(date.getDate() - date.getDay())
     const weekKey = weekStart.toISOString().split('T')[0]
@@ -49,7 +49,11 @@ export function RatingGraphSlide({ ratingProgression }: RatingGraphSlideProps) {
   }
 
   const sortedWeeks = Array.from(weekMap.entries())
-    .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+    .sort((a, b) => {
+      const dateA = new Date(a[0])
+      const dateB = new Date(b[0])
+      return dateA.getTime() - dateB.getTime()
+    })
     .forEach(([week, data]) => {
       chartData.push({
         date: new Date(week).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -139,9 +143,17 @@ export function RatingGraphSlide({ ratingProgression }: RatingGraphSlideProps) {
           {Object.entries(groupedByTimeControl).map(([tc, data]) => {
             if (data.length === 0) return null
 
-            const sorted = [...data].sort((a, b) => b.date.getTime() - a.date.getTime())
+            const sorted = [...data].sort((a, b) => {
+              const dateA = a.date instanceof Date ? a.date : new Date(a.date)
+              const dateB = b.date instanceof Date ? b.date : new Date(b.date)
+              return dateB.getTime() - dateA.getTime()
+            })
             const current = sorted[0]
-            const start = [...data].sort((a, b) => a.date.getTime() - b.date.getTime())[0]
+            const start = [...data].sort((a, b) => {
+              const dateA = a.date instanceof Date ? a.date : new Date(a.date)
+              const dateB = b.date instanceof Date ? b.date : new Date(b.date)
+              return dateA.getTime() - dateB.getTime()
+            })[0]
             const gain = current.rating - start.rating
 
             return (
