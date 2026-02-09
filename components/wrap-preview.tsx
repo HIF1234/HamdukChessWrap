@@ -8,8 +8,11 @@ import { Button } from "@/components/ui/button"
 import { IntroSlide } from "@/components/slides/intro-slide"
 import { ProfileSlide } from "@/components/slides/profile-slide"
 import { JourneySlide } from "@/components/slides/journey-slide"
-import { MatchupsSlide } from "@/components/slides/matchups-slide" // Added matchups slide
+import { MatchupsSlide } from "@/components/slides/matchups-slide"
 import { StatsSlide } from "@/components/slides/stats-slide"
+import { TimeControlsSlide } from "@/components/slides/time-controls-slide"
+import { RatingMasterySlide } from "@/components/slides/rating-mastery-slide"
+import { RatingGraphSlide } from "@/components/slides/rating-graph-slide"
 import { RatingSlide } from "@/components/slides/rating-slide"
 import { OpeningSlide } from "@/components/slides/opening-slide"
 import { PlaystyleSlide } from "@/components/slides/playstyle-slide"
@@ -39,8 +42,11 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
     { id: "intro", component: IntroSlide },
     { id: "profile", component: ProfileSlide },
     { id: "journey", component: JourneySlide },
-    { id: "matchups", component: MatchupsSlide }, // Added matchups slide
+    { id: "matchups", component: MatchupsSlide },
     { id: "stats", component: StatsSlide },
+    { id: "time-controls", component: TimeControlsSlide },
+    { id: "rating-mastery", component: RatingMasterySlide },
+    { id: "rating-graph", component: RatingGraphSlide },
     { id: "rating", component: RatingSlide },
     { id: "opening", component: OpeningSlide },
     { id: "playstyle", component: PlaystyleSlide },
@@ -197,7 +203,24 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
             onTouchStart={() => setIsPaused(true)}
             onTouchEnd={() => setIsPaused(false)}
           >
-            <CurrentSlideComponent data={data} shareId={shareId} />
+            {slides[currentSlide].id === "time-controls" && (
+              <TimeControlsSlide timeControlStats={data.timeControlBreakdown} />
+            )}
+            {slides[currentSlide].id === "rating-mastery" && (
+              <RatingMasterySlide 
+                timeControlStats={data.timeControlBreakdown}
+                ratingGain={data.ratingProgression.length > 0 ? 
+                  data.ratingProgression[data.ratingProgression.length - 1].rating - data.ratingProgression[0].rating : 0}
+                startRating={data.ratingProgression.length > 0 ? data.ratingProgression[0].rating : 0}
+                endRating={data.ratingProgression.length > 0 ? data.ratingProgression[data.ratingProgression.length - 1].rating : 0}
+              />
+            )}
+            {slides[currentSlide].id === "rating-graph" && (
+              <RatingGraphSlide ratingProgression={data.ratingProgression} />
+            )}
+            {!["time-controls", "rating-mastery", "rating-graph"].includes(slides[currentSlide].id) && (
+              <CurrentSlideComponent data={data} shareId={shareId} />
+            )}
           </motion.div>
         </AnimatePresence>
 

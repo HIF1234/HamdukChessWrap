@@ -95,6 +95,103 @@ export async function fetchChessDotComGames(username: string, year: number): Pro
   }
 }
 
+// Calculate detailed time control statistics
+export function calculateTimeControlStats(games: ChessGame[]): TimeControlStats[] {
+  const timeControls: Record<TimeControl, TimeControlStats> = {
+    bullet: { timeControl: "bullet", games: 0, wins: 0, losses: 0, draws: 0, winRate: 0, averageRating: 0 },
+    blitz: { timeControl: "blitz", games: 0, wins: 0, losses: 0, draws: 0, winRate: 0, averageRating: 0 },
+    rapid: { timeControl: "rapid", games: 0, wins: 0, losses: 0, draws: 0, winRate: 0, averageRating: 0 },
+    classical: { timeControl: "classical", games: 0, wins: 0, losses: 0, draws: 0, winRate: 0, averageRating: 0 },
+  }
+
+  const ratingTracking: Record<TimeControl, number[]> = {
+    bullet: [],
+    blitz: [],
+    rapid: [],
+    classical: [],
+  }
+
+  // Process each game
+  for (const game of games) {
+    const tc = timeControls[game.timeControl]
+    tc.games++
+
+    if (game.result === "win") tc.wins++
+    else if (game.result === "loss") tc.losses++
+    else tc.draws++
+
+    ratingTracking[game.timeControl].push(game.userRating)
+  }
+
+  // Calculate statistics for each time control
+  for (const tc of Object.values(timeControls)) {
+    if (tc.games > 0) {
+      tc.winRate = (tc.wins / tc.games) * 100
+      const ratings = ratingTracking[tc.timeControl]
+      tc.averageRating = Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length)
+      tc.highestRating = Math.max(...ratings)
+    }
+  }
+
+  return Object.values(timeControls).filter((tc) => tc.games > 0)
+}
+
+// Calculate rating progression with start/end ratings
+export function calculateRatingProgression(games: ChessGame[]): { start: number; end: number; gain: number } {
+  if (games.length === 0) {
+    return { start: 0, end: 0, gain: 0 }
+  }
+
+  const sortedByDate = [...games].sort((a, b) => a.date.getTime() - b.date.getTime())
+  const startRating = sortedByDate[0].userRating
+  const endRating = sortedByDate[sortedByDate.length - 1].userRating
+  const gain = endRating - startRating
+
+  return { start: startRating, end: endRating, gain }
+}
+
+// Get rating progression timeline
+export function getRatingTimeline(games: ChessGame[]): RatingProgression[] {
+  const progressionMap = new Map<string, RatingProgression>()
+
+  // Group games by date and track rating changes
+  const sortedGames = [...games].sort((a, b) => a.date.getTime() - b.date.getTime())
+
+  for (const game of sortedGames) {
+    const dateStr = game.date.toISOString().split("T")[0]
+    const key = `${dateStr}-${game.timeControl}`
+
+    if (!progressionMap.has(key) || progressionMap.get(key)!.rating < game.userRating) {
+      progressionMap.set(key, {
+        date: game.date,
+        rating: game.userRating,
+        timeControl: game.timeControl,
+      })
+    }
+  }
+
+  return Array.from(progressionMap.values()).sort((a, b) => a.date.getTime() - b.date.getTime())
+}
+
+// Get highest rated opponent per time control
+export function getHighestRatedWin(games: ChessGame[]): { opponent: string; rating: number; timeControl: TimeControl } | null {
+  const wins = games.filter((g) => g.result === "win")
+  if (wins.length === 0) return null
+
+  let best = wins[0]
+  for (const game of wins) {
+    if (game.opponentRating > best.opponentRating) {
+      best = game
+    }
+  }
+
+  return {
+    opponent: best.userColor === "white" ? best.black : best.white,
+    rating: best.opponentRating,
+    timeControl: best.timeControl,
+  }
+}
+
 export async function fetchLichessGames(username: string, year: number): Promise<ChessGame[]> {
   try {
     // Verify user exists first
@@ -438,36 +535,6 @@ function calculatePlayerStats(games: ChessGame[], username: string, platform: st
   }
 }
 
-function calculateTimeControlStats(games: ChessGame[]): TimeControlStats[] {
-  const stats = new Map<
-    TimeControl,
-    { games: number; wins: number; losses: number; draws: number; totalRating: number }
-  >()
-
-  for (const game of games) {
-    if (!stats.has(game.timeControl)) {
-      stats.set(game.timeControl, { games: 0, wins: 0, losses: 0, draws: 0, totalRating: 0 })
-    }
-
-    const stat = stats.get(game.timeControl)!
-    stat.games++
-    stat.totalRating += game.userRating
-    if (game.result === "win") stat.wins++
-    if (game.result === "loss") stat.losses++
-    if (game.result === "draw") stat.draws++
-  }
-
-  return Array.from(stats.entries()).map(([timeControl, data]) => ({
-    timeControl,
-    games: data.games,
-    wins: data.wins,
-    losses: data.losses,
-    draws: data.draws,
-    winRate: Math.round((data.wins / data.games) * 1000) / 10,
-    averageRating: Math.round(data.totalRating / data.games),
-  }))
-}
-
 function calculateOpeningStats(games: ChessGame[]): OpeningStats[] {
   const stats = new Map<string, { games: number; wins: number; losses: number; draws: number }>()
 
@@ -545,59 +612,50 @@ function calculateMonthlyActivity(games: ChessGame[]): MonthlyActivity[] {
   }))
 }
 
-function calculateRatingProgression(games: ChessGame[]): RatingProgression[] {
-  return games
-    .filter((g) => g.userRating > 0)
-    .map((g) => ({
-      date: g.date,
-      rating: g.userRating,
-      timeControl: g.timeControl,
-    }))
-}
-
-function analyzePlaystyle(games: ChessGame[]): PlaystyleAnalysis {
-  const totalMoves = games.reduce((sum, g) => {
-    const moves = g.moves.split(" ").filter((m) => m.trim()).length
-    return sum + moves
-  }, 0)
-
-  const avgGameLength = games.length > 0 ? Math.round(totalMoves / games.length) : 0
-
-  // Simple heuristics for playstyle
-  const shortGames = games.filter((g) => g.moves.split(" ").length < 40).length
-  const aggressiveScore = Math.min(100, Math.round((shortGames / games.length) * 150))
-  const positionalScore = 100 - aggressiveScore
-
+function calculatePlayHabits(games: ChessGame[]): PlayHabits {
   const hours = games.map((g) => g.date.getHours())
-  const dayGames = hours.filter((h) => h >= 6 && h < 18).length
-  const nightGames = games.length - dayGames
-
   const days = games.map((g) => g.date.getDay())
+
+  // Calculate hourly distribution
+  const hourCounts: { [hour: number]: number } = {}
+  hours.forEach((h) => {
+    hourCounts[h] = (hourCounts[h] || 0) + 1
+  })
+  const hourlyDistribution = Object.entries(hourCounts).map(([hour, count]) => ({
+    hour: Number(hour),
+    games: count,
+  }))
+
+  // Calculate day of week distribution
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+  const dayCounts: { [day: string]: number } = {}
+  days.forEach((d) => {
+    const dayName = dayNames[d]
+    dayCounts[dayName] = (dayCounts[dayName] || 0) + 1
+  })
+  const dayOfWeekDistribution = Object.entries(dayCounts).map(([day, count]) => ({
+    day,
+    games: count,
+  }))
+
+  const mostActiveDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "Monday"
+  const mostActiveHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "12"
+
+  const nightGames = hours.filter((h) => h >= 20 || h < 6).length
+  const dayGames = games.length - nightGames
+
   const weekendGames = days.filter((d) => d === 0 || d === 6).length
   const weekdayGames = games.length - weekendGames
 
-  const hourCounts = hours.reduce((acc, h) => {
-    acc[h] = (acc[h] || 0) + 1
-    return acc
-  }, {} as any)
-  const mostActiveHour = Object.entries(hourCounts).sort((a: any, b: any) => b[1] - a[1])[0]
-    ? Number(Object.entries(hourCounts).sort((a: any, b: any) => b[1] - a[1])[0][0])
-    : undefined
-
   return {
-    aggressiveScore,
-    positionalScore,
-    earlyQueenMoves: 0,
-    sacrificeCount: 0,
-    timeTroubleGames: 0,
-    averageGameLength: avgGameLength,
-    riskLevel: aggressiveScore > 60 ? "High" : aggressiveScore > 40 ? "Medium" : "Low",
-    comebackRate: Math.round(Math.random() * 100),
-    clutchWins: Math.floor(games.length * 0.05),
-    tiltTendency: Math.round(Math.random() * 100),
-    timeDayNight: { day: dayGames, night: nightGames },
-    weekdaysVsWeekends: { weekdays: weekdayGames, weekends: weekendGames },
-    mostActiveHour,
+    mostActiveDay,
+    mostActiveHour: Number(mostActiveHour),
+    nightGames,
+    dayGames,
+    weekendGames,
+    weekdayGames,
+    hourlyDistribution,
+    dayOfWeekDistribution,
   }
 }
 
@@ -716,53 +774,129 @@ function generateTrainingPlan(
   return plan
 }
 
-function calculatePlayHabits(games: ChessGame[]): PlayHabits {
-  const hours = games.map((g) => g.date.getHours())
-  const days = games.map((g) => g.date.getDay())
+export async function saveChessWrap(username: string, platform: string, mode: string, data: ChessWrapData) {
+  const { data: result, error } = await supabase
+    .from("chess_wraps")
+    .insert([{ username, platform, narration_mode: mode, data }])
+    .select("id")
+    .single()
 
-  // Calculate hourly distribution
-  const hourCounts: { [hour: number]: number } = {}
-  hours.forEach((h) => {
-    hourCounts[h] = (hourCounts[h] || 0) + 1
-  })
-  const hourlyDistribution = Object.entries(hourCounts).map(([hour, count]) => ({
-    hour: Number(hour),
-    games: count,
-  }))
+  if (error) throw error
+  return result.id
+}
 
-  // Calculate day of week distribution
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-  const dayCounts: { [day: string]: number } = {}
-  days.forEach((d) => {
-    const dayName = dayNames[d]
-    dayCounts[dayName] = (dayCounts[dayName] || 0) + 1
-  })
-  const dayOfWeekDistribution = Object.entries(dayCounts).map(([day, count]) => ({
-    day,
-    games: count,
-  }))
+export async function getChessWrapById(id: string) {
+  const { data, error } = await supabase.from("chess_wraps").select("*").eq("id", id).single()
+  if (error) return null
+  return data
+}
 
-  const mostActiveDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "Monday"
-  const mostActiveHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "12"
+export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapData> {
+  const { username, platform, year = new Date().getFullYear(), narrationMode = "coach" } = config
 
-  const nightGames = hours.filter((h) => h >= 20 || h < 6).length
-  const dayGames = games.length - nightGames
+  let games: ChessGame[] = []
+  let profile: any = {}
 
-  const weekendGames = days.filter((d) => d === 0 || d === 6).length
-  const weekdayGames = games.length - weekendGames
+  try {
+    if (platform === "chess.com") {
+      profile = await fetchChessDotComProfile(username)
+      games = await fetchChessDotComGames(username, year)
+    } else if (platform === "lichess") {
+      profile = await fetchLichessProfile(username)
+      games = await fetchLichessGames(username, year)
+    } else {
+      throw new Error(`Unsupported platform: ${platform}`)
+    }
 
-  return {
-    mostActiveDay,
-    mostActiveHour: Number(mostActiveHour),
-    nightGames,
-    dayGames,
-    weekendGames,
-    weekdayGames,
-    hourlyDistribution,
-    dayOfWeekDistribution,
+    if (games.length === 0) {
+      throw new Error(`No games found for ${username} on ${platform} in ${year}`)
+    }
+
+    const playerStats = calculatePlayerStats(games, username, platform, profile) // Pass profile data
+    const timeControlStats = calculateTimeControlStats(games)
+    const openingStats = calculateOpeningStats(games)
+    const colorStats = calculateColorStats(games)
+    const monthlyActivity = calculateMonthlyActivity(games)
+    const ratingProgression = getRatingTimeline(games)
+    const playstyleAnalysis = analyzePlaystyle(games)
+    const highlights = generateHighlights(games)
+    const trainingPlan = generateTrainingPlan(playerStats, openingStats, playstyleAnalysis)
+    const aiInsights = await generateAIInsights(games, playerStats, openingStats, narrationMode)
+    const playHabits = calculatePlayHabits(games)
+    const achievements = generateAchievements(games, playerStats, playstyleAnalysis)
+
+    return {
+      player: playerStats,
+      timeControlBreakdown: timeControlStats,
+      colorStats,
+      monthlyActivity,
+      ratingProgression,
+      topOpenings: openingStats,
+      playstyle: playstyleAnalysis,
+      aiInsights,
+      highlights,
+      trainingPlan,
+      playHabits,
+      achievements,
+      dateRange: {
+        start: games[0].date,
+        end: games[games.length - 1].date,
+      },
+    }
+  } catch (error) {
+    console.error("[v0] Error generating chess wrap:", error)
+    throw error
   }
 }
 
+// Analyze playstyle
+function analyzePlaystyle(games: ChessGame[]): PlaystyleAnalysis {
+  const totalMoves = games.reduce((sum, g) => {
+    const moves = g.moves.split(" ").filter((m) => m.trim()).length
+    return sum + moves
+  }, 0)
+
+  const avgGameLength = games.length > 0 ? Math.round(totalMoves / games.length) : 0
+
+  // Simple heuristics for playstyle
+  const shortGames = games.filter((g) => g.moves.split(" ").length < 40).length
+  const aggressiveScore = Math.min(100, Math.round((shortGames / games.length) * 150))
+  const positionalScore = 100 - aggressiveScore
+
+  const hours = games.map((g) => g.date.getHours())
+  const dayGames = hours.filter((h) => h >= 6 && h < 18).length
+  const nightGames = games.length - dayGames
+
+  const days = games.map((g) => g.date.getDay())
+  const weekendGames = days.filter((d) => d === 0 || d === 6).length
+  const weekdayGames = games.length - weekendGames
+
+  const hourCounts = hours.reduce((acc, h) => {
+    acc[h] = (acc[h] || 0) + 1
+    return acc
+  }, {} as any)
+  const mostActiveHour = Object.entries(hourCounts).sort((a: any, b: any) => b[1] - a[1])[0]
+    ? Number(Object.entries(hourCounts).sort((a: any, b: any) => b[1] - a[1])[0][0])
+    : undefined
+
+  return {
+    aggressiveScore,
+    positionalScore,
+    earlyQueenMoves: 0,
+    sacrificeCount: 0,
+    timeTroubleGames: 0,
+    averageGameLength: avgGameLength,
+    riskLevel: aggressiveScore > 60 ? "High" : aggressiveScore > 40 ? "Medium" : "Low",
+    comebackRate: Math.round(Math.random() * 100),
+    clutchWins: Math.floor(games.length * 0.05),
+    tiltTendency: Math.round(Math.random() * 100),
+    timeDayNight: { day: dayGames, night: nightGames },
+    weekdaysVsWeekends: { weekdays: weekdayGames, weekends: weekendGames },
+    mostActiveHour,
+  }
+}
+
+// Generate achievements
 function generateAchievements(
   games: ChessGame[],
   playerStats: PlayerStats,
@@ -826,79 +960,4 @@ function generateAchievements(
   }
 
   return achievements
-}
-
-export async function saveChessWrap(username: string, platform: string, mode: string, data: ChessWrapData) {
-  const { data: result, error } = await supabase
-    .from("chess_wraps")
-    .insert([{ username, platform, narration_mode: mode, data }])
-    .select("id")
-    .single()
-
-  if (error) throw error
-  return result.id
-}
-
-export async function getChessWrapById(id: string) {
-  const { data, error } = await supabase.from("chess_wraps").select("*").eq("id", id).single()
-  if (error) return null
-  return data
-}
-
-export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapData> {
-  const { username, platform, year = new Date().getFullYear(), narrationMode = "coach" } = config
-
-  let games: ChessGame[] = []
-  let profile: any = {}
-
-  try {
-    if (platform === "chess.com") {
-      profile = await fetchChessDotComProfile(username)
-      games = await fetchChessDotComGames(username, year)
-    } else if (platform === "lichess") {
-      profile = await fetchLichessProfile(username)
-      games = await fetchLichessGames(username, year)
-    } else {
-      throw new Error(`Unsupported platform: ${platform}`)
-    }
-
-    if (games.length === 0) {
-      throw new Error(`No games found for ${username} on ${platform} in ${year}`)
-    }
-
-    const playerStats = calculatePlayerStats(games, username, platform, profile) // Pass profile data
-    const timeControlStats = calculateTimeControlStats(games)
-    const openingStats = calculateOpeningStats(games)
-    const colorStats = calculateColorStats(games)
-    const monthlyActivity = calculateMonthlyActivity(games)
-    const ratingProgression = calculateRatingProgression(games)
-    const playstyleAnalysis = analyzePlaystyle(games)
-    const highlights = generateHighlights(games)
-    const trainingPlan = generateTrainingPlan(playerStats, openingStats, playstyleAnalysis)
-    const aiInsights = await generateAIInsights(games, playerStats, openingStats, narrationMode)
-    const playHabits = calculatePlayHabits(games)
-    const achievements = generateAchievements(games, playerStats, playstyleAnalysis)
-
-    return {
-      player: playerStats,
-      timeControlBreakdown: timeControlStats,
-      colorStats,
-      monthlyActivity,
-      ratingProgression,
-      topOpenings: openingStats,
-      playstyle: playstyleAnalysis,
-      aiInsights,
-      highlights,
-      trainingPlan,
-      playHabits,
-      achievements,
-      dateRange: {
-        start: games[0].date,
-        end: games[games.length - 1].date,
-      },
-    }
-  } catch (error) {
-    console.error("[v0] Error generating chess wrap:", error)
-    throw error
-  }
 }
