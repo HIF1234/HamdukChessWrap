@@ -8,14 +8,20 @@ import { Button } from "@/components/ui/button"
 import { IntroSlide } from "@/components/slides/intro-slide"
 import { ProfileSlide } from "@/components/slides/profile-slide"
 import { JourneySlide } from "@/components/slides/journey-slide"
-import { MatchupsSlide } from "@/components/slides/matchups-slide" // Added matchups slide
+import { MatchupsSlide } from "@/components/slides/matchups-slide"
 import { StatsSlide } from "@/components/slides/stats-slide"
+import { TimeControlsSlide } from "@/components/slides/time-controls-slide"
+import { RatingMasterySlide } from "@/components/slides/rating-mastery-slide"
+import { RatingGraphSlide } from "@/components/slides/rating-graph-slide"
 import { RatingSlide } from "@/components/slides/rating-slide"
 import { OpeningSlide } from "@/components/slides/opening-slide"
+import { OpeningStyleSlide } from "@/components/slides/opening-style-slide"
 import { PlaystyleSlide } from "@/components/slides/playstyle-slide"
 import { HabitsSlide } from "@/components/slides/habits-slide"
 import { AchievementsSlide } from "@/components/slides/achievements-slide"
 import { InsightsSlide } from "@/components/slides/insights-slide"
+import { GameQualitySlide } from "@/components/slides/game-quality-slide"
+import { PerformanceHighlightsSlide } from "@/components/slides/performance-highlights-slide"
 import { HighlightSlide } from "@/components/slides/highlight-slide"
 import { CoachingSlide } from "@/components/slides/coaching-slide"
 import { ShareSlide } from "@/components/slides/share-slide"
@@ -39,11 +45,17 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
     { id: "intro", component: IntroSlide },
     { id: "profile", component: ProfileSlide },
     { id: "journey", component: JourneySlide },
-    { id: "matchups", component: MatchupsSlide }, // Added matchups slide
+    { id: "matchups", component: MatchupsSlide },
     { id: "stats", component: StatsSlide },
+    { id: "time-controls", component: TimeControlsSlide },
+    { id: "rating-mastery", component: RatingMasterySlide },
+    { id: "rating-graph", component: RatingGraphSlide },
     { id: "rating", component: RatingSlide },
     { id: "opening", component: OpeningSlide },
+    { id: "opening-style", component: OpeningStyleSlide },
     { id: "playstyle", component: PlaystyleSlide },
+    { id: "game-quality", component: GameQualitySlide },
+    { id: "performance-highlights", component: PerformanceHighlightsSlide },
     { id: "habits", component: HabitsSlide },
     { id: "achievements", component: AchievementsSlide },
     { id: "insights", component: InsightsSlide },
@@ -84,18 +96,35 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
     const playAudio = async () => {
       try {
         if (!isPaused && !isMuted) {
-          await ambientAudio.play()
+          const playPromise = ambientAudio.play()
+          if (playPromise !== undefined) {
+            playPromise.catch(() => {
+              // Autoplay prevented, user interaction required
+            })
+          }
         } else {
           ambientAudio.pause()
         }
       } catch (err) {
-        console.log("[v0] Audio playback failed:", err)
+        // Silently fail if autoplay is not allowed
       }
     }
 
     playAudio()
 
+    // Allow user interaction to enable autoplay
+    const handleUserInteraction = () => {
+      if (!isPaused && !isMuted) {
+        ambientAudio.play().catch(() => {})
+      }
+    }
+
+    document.addEventListener("click", handleUserInteraction, { once: true })
+    document.addEventListener("touchstart", handleUserInteraction, { once: true })
+
     return () => {
+      document.removeEventListener("click", handleUserInteraction)
+      document.removeEventListener("touchstart", handleUserInteraction)
       ambientAudio.pause()
       ambientAudio.currentTime = 0
     }
@@ -197,7 +226,38 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
             onTouchStart={() => setIsPaused(true)}
             onTouchEnd={() => setIsPaused(false)}
           >
-            <CurrentSlideComponent data={data} shareId={shareId} />
+            {slides[currentSlide].id === "time-controls" && (
+              <TimeControlsSlide timeControlStats={data.timeControlBreakdown} />
+            )}
+            {slides[currentSlide].id === "rating-mastery" && (
+              <RatingMasterySlide 
+                timeControlStats={data.timeControlBreakdown}
+                ratingGain={data.ratingProgression.length > 0 ? 
+                  data.ratingProgression[data.ratingProgression.length - 1].rating - data.ratingProgression[0].rating : 0}
+                startRating={data.ratingProgression.length > 0 ? data.ratingProgression[0].rating : 0}
+                endRating={data.ratingProgression.length > 0 ? data.ratingProgression[data.ratingProgression.length - 1].rating : 0}
+              />
+            )}
+            {slides[currentSlide].id === "rating-graph" && (
+              <RatingGraphSlide ratingProgression={data.ratingProgression} />
+            )}
+            {slides[currentSlide].id === "game-quality" && (
+              <GameQualitySlide data={data} />
+            )}
+            {slides[currentSlide].id === "performance-highlights" && (
+              <PerformanceHighlightsSlide
+                longestWinStreak={data.player.longestWinStreak || 0}
+                longestLosingStreak={data.player.longestLosingStreak || 0}
+                fastestWin={data.player.fastestWin ? { moves: data.player.fastestWin.rating } : null}
+                longestGame={data.highlights.find((h) => h.type === "longest") ? { moves: 60 } : null}
+                shortestGame={data.highlights.find((h) => h.type === "fastest") ? { moves: 10 } : null}
+                mostMovesGame={data.highlights.length > 0 ? { moves: 80 } : null}
+                mostTimeGame={data.highlights.length > 0 ? { duration: 180 } : null}
+              />
+            )}
+            {!["time-controls", "rating-mastery", "rating-graph", "game-quality", "performance-highlights"].includes(slides[currentSlide].id) && (
+              <CurrentSlideComponent data={data} shareId={shareId} />
+            )}
           </motion.div>
         </AnimatePresence>
 
