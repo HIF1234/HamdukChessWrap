@@ -25,6 +25,9 @@ import { PerformanceHighlightsSlide } from "@/components/slides/performance-high
 import { HighlightSlide } from "@/components/slides/highlight-slide"
 import { CoachingSlide } from "@/components/slides/coaching-slide"
 import { ShareSlide } from "@/components/slides/share-slide"
+import { YearCardSlide } from "@/components/slides/year-card-slide"
+import { RatingGrowthCardSlide } from "@/components/slides/rating-growth-card-slide"
+import { PersonalityCardSlide } from "@/components/slides/personality-card-slide"
 
 interface WrapPreviewProps {
   data: ChessWrapData
@@ -38,8 +41,8 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
   const [isPaused, setIsPaused] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
 
-  const bgMusic = "https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"
-  const roastMusic = "https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"
+  const bgMusic = "https://8e9prkracgmwcsm9.public.blob.vercel-storage.com/prettyjohn1-spring-vlog_34sec-508391.mp3"
+  const roastMusic = "https://8e9prkracgmwcsm9.public.blob.vercel-storage.com/prettyjohn1-spring-vlog_34sec-508391.mp3"
 
   const slides = [
     { id: "intro", component: IntroSlide },
@@ -61,6 +64,9 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
     { id: "insights", component: InsightsSlide },
     { id: "highlights", component: HighlightSlide },
     { id: "coaching", component: CoachingSlide },
+    { id: "year-card", component: YearCardSlide },
+    { id: "rating-growth-card", component: RatingGrowthCardSlide },
+    { id: "personality-card", component: PersonalityCardSlide },
     { id: "share", component: ShareSlide },
   ]
 
@@ -255,7 +261,16 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
                 mostTimeGame={data.highlights.length > 0 ? { duration: 180 } : null}
               />
             )}
-            {!["time-controls", "rating-mastery", "rating-graph", "game-quality", "performance-highlights"].includes(slides[currentSlide].id) && (
+            {slides[currentSlide].id === "year-card" && (
+              <YearCardSlide data={data} />
+            )}
+            {slides[currentSlide].id === "rating-growth-card" && (
+              <RatingGrowthCardSlide data={data} />
+            )}
+            {slides[currentSlide].id === "personality-card" && (
+              <PersonalityCardSlide data={data} />
+            )}
+            {!["time-controls", "rating-mastery", "rating-graph", "game-quality", "performance-highlights", "year-card", "rating-growth-card", "personality-card"].includes(slides[currentSlide].id) && (
               <CurrentSlideComponent data={data} shareId={shareId} />
             )}
           </motion.div>

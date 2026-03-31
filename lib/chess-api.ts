@@ -17,8 +17,12 @@ import type {
   PlayHabits,
 } from "./types"
 import { createBrowserClient } from "@supabase/ssr"
+import ecoCodesData from "./eco-codes.json"
 
 const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+
+// Load ECO codes mapping
+const ECO_CODES: Record<string, string> = ecoCodesData
 
 export async function fetchChessDotComGames(username: string, year: number): Promise<ChessGame[]> {
   const games: ChessGame[] = []
@@ -372,6 +376,120 @@ function isGambit(opening: string, ecoCode?: string): boolean {
   const lowerOpening = opening.toLowerCase()
   return gambitKeywords.some((keyword) => lowerOpening.includes(keyword)) || 
          (ecoCode && (ecoCode.startsWith("C3") || ecoCode.startsWith("C4") || ecoCode.startsWith("C5")))
+}
+
+// Get opening name from ECO code
+function getOpeningFromEco(ecoCode?: string): string {
+  if (!ecoCode) return "Unknown Opening"
+  return ECO_CODES[ecoCode] || ecoCode
+}
+
+// Calculate comeback rate (wins after losses in sequence)
+function calculateComebackRate(games: ChessGame[]): number {
+  if (games.length < 2) return 0
+  
+  let comebackWins = 0
+  let comebackOpportunities = 0
+  
+  for (let i = 1; i < games.length; i++) {
+    if (games[i - 1].result === "loss") {
+      comebackOpportunities++
+      if (games[i].result === "win") {
+        comebackWins++
+      }
+    }
+  }
+  
+  return comebackOpportunities > 0 ? (comebackWins / comebackOpportunities) * 100 : 0
+}
+
+// Calculate clutch wins (wins when opponent is higher rated)
+function calculateClutchWins(games: ChessGame[]): number {
+  let clutchWins = 0
+  
+  for (const game of games) {
+    if (game.result === "win" && game.opponentRating > game.userRating) {
+      clutchWins++
+    }
+  }
+  
+  return clutchWins
+}
+
+// Calculate tilt tendency (losing streak frequency and severity)
+function calculateTiltTendency(games: ChessGame[]): number {
+  let maxLossStreak = 0
+  let currentStreak = 0
+  let totalStreaks = 0
+  
+  for (const game of games) {
+    if (game.result === "loss") {
+      currentStreak++
+      maxLossStreak = Math.max(maxLossStreak, currentStreak)
+    } else {
+      if (currentStreak > 0) totalStreaks++
+      currentStreak = 0
+    }
+  }
+  
+  // Tilt tendency score: higher streaks + more frequent streaks = higher tilt tendency
+  const streakSeverity = (maxLossStreak / 10) * 50 // Max 50 points
+  const streakFrequency = (totalStreaks / (games.length / 10)) * 50 // Max 50 points
+  
+  return Math.min(100, streakSeverity + streakFrequency)
+}
+
+// Calculate achievements based on milestones
+function calculateAchievements(games: ChessGame[], stats: PlayerStats, playstyle: PlaystyleAnalysis): Achievement[] {
+  const achievements: Achievement[] = []
+  
+  // Rating milestones
+  if (stats.currentRating >= 2000) {
+    achievements.push({
+      type: "rating",
+      title: "Master Level",
+      description: "Reached 2000+ rating",
+      earnedAt: new Date(),
+    })
+  }
+  if (stats.currentRating >= 1800) {
+    achievements.push({
+      type: "rating",
+      title: "Expert",
+      description: "Reached 1800+ rating",
+      earnedAt: new Date(),
+    })
+  }
+  
+  // Win streak badges
+  if (stats.longestWinStreak >= 10) {
+    achievements.push({
+      type: "streak",
+      title: "Unstoppable",
+      description: `${stats.longestWinStreak} game win streak`,
+      earnedAt: new Date(),
+    })
+  }
+  if (stats.longestWinStreak >= 5) {
+    achievements.push({
+      type: "streak",
+      title: "Hot Hand",
+      description: `${stats.longestWinStreak} game win streak`,
+      earnedAt: new Date(),
+    })
+  }
+  
+  // Accuracy badges
+  if (playstyle.averageAccuracy && playstyle.averageAccuracy >= 90) {
+    achievements.push({
+      type: "accuracy",
+      title: "Precision Master",
+      description: `${Math.round(playstyle.averageAccuracy)}% average accuracy`,
+      earnedAt: new Date(),
+    })
+  }
+  
+  return achievements
 }
 
 async function fetchChessDotComProfile(username: string) {
