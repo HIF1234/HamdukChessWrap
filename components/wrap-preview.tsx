@@ -218,7 +218,7 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
       </div>
 
       {/* Slide Content */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative overflow-y-auto">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSlide}
@@ -254,11 +254,11 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
               <PerformanceHighlightsSlide
                 longestWinStreak={data.player.longestWinStreak || 0}
                 longestLosingStreak={data.player.longestLosingStreak || 0}
-                fastestWin={data.player.fastestWin ? { moves: data.player.fastestWin.rating } : null}
-                longestGame={data.highlights.find((h) => h.type === "longest") ? { moves: 60 } : null}
-                shortestGame={data.highlights.find((h) => h.type === "fastest") ? { moves: 10 } : null}
-                mostMovesGame={data.highlights.length > 0 ? { moves: 80 } : null}
-                mostTimeGame={data.highlights.length > 0 ? { duration: 180 } : null}
+                fastestWin={data.player.fastestWin ? { moves: data.player.fastestWin.moves || 5 } : null}
+                longestGame={data.player.longestGame ? { moves: data.player.longestGame.moves || 60 } : null}
+                shortestGame={data.player.shortestGame ? { moves: data.player.shortestGame.moves || 10 } : null}
+                mostMovesGame={data.highlights.length > 0 ? { moves: data.highlights.find((h) => h.type === "most_moves")?.game?.moveCount || 80 } : null}
+                mostTimeGame={null}
               />
             )}
             {slides[currentSlide].id === "year-card" && (

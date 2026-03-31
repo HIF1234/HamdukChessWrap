@@ -23,7 +23,7 @@ export function PlaystyleSlide({ data }: { data: ChessWrapData }) {
           <div className="h-4 w-full bg-muted rounded-full overflow-hidden p-1 border border-white/5">
             <motion.div
               initial={{ width: "50%" }}
-              animate={{ width: `${data.playstyle.aggressiveScore}%` }}
+              animate={{ width: `${Math.max(0, Math.min(100, data.playstyle.aggressiveScore || 50))}%` }}
               transition={{ duration: 1.5, type: "spring" }}
               className="h-full bg-primary rounded-full shadow-[0_0_15px_oklch(0.75_0.15_195)]"
             />

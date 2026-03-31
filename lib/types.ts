@@ -146,8 +146,8 @@ export interface AIInsights {
 }
 
 export interface HighlightGame {
-  type: "best" | "worst" | "brilliant" | "fastest" | "longest"
-  game: ChessGame
+  type: "best" | "worst" | "brilliant" | "fastest" | "longest" | "most_moves" | "most_time"
+  game: ChessGame & { gameUrl?: string }
   reason: string
   keyPosition?: string
   criticalMove?: string

@@ -63,8 +63,12 @@ export async function fetchChessDotComGames(username: string, year: number): Pro
             // Extract time control
             const timeControl = determineTimeControl(game.time_class || "blitz")
 
-            // Extract opening from PGN
-            const opening = extractOpening(game.pgn) || "Unknown Opening"
+            // Extract ECO code and opening from PGN
+            const ecoCode = extractEcoCode(game.pgn)
+            const openingName = ecoCode ? getOpeningFromEco(ecoCode) : extractOpening(game.pgn) || "Unknown Opening"
+            
+            // Calculate move count
+            const moveCount = (game.pgn.match(/\d+\./g) || []).length
 
             games.push({
               id: game.url || `${game.end_time}`,
@@ -76,12 +80,14 @@ export async function fetchChessDotComGames(username: string, year: number): Pro
               whiteRating: game.white.rating,
               blackRating: game.black.rating,
               moves: game.pgn,
-              opening,
+              opening: openingName,
               termination: game.pgn.includes("checkmate") ? "checkmate" : "resignation",
               pgn: game.pgn,
               userColor,
               userRating,
               opponentRating,
+              ecoCode,
+              moveCount,
             })
           }
         }
@@ -245,6 +251,13 @@ export async function fetchLichessGames(username: string, year: number): Promise
 
         // Map speed to time control
         const timeControl = determineTimeControl(game.speed || "blitz")
+        
+        // Extract ECO code and opening
+        const ecoCode = extractEcoCode(game.pgn || "")
+        const openingName = ecoCode ? getOpeningFromEco(ecoCode) : (game.opening?.name || "Unknown Opening")
+        
+        // Calculate move count
+        const moveCount = (game.pgn?.match(/\d+\./g) || []).length
 
         games.push({
           id: game.id,
@@ -256,12 +269,14 @@ export async function fetchLichessGames(username: string, year: number): Promise
           whiteRating: game.players.white.rating,
           blackRating: game.players.black.rating,
           moves: game.pgn || game.moves || "",
-          opening: game.opening?.name || "Unknown Opening",
+          opening: openingName,
           termination: game.status || "normal",
           pgn: game.pgn || "",
           userColor,
           userRating,
           opponentRating,
+          ecoCode,
+          moveCount,
         })
       } catch (parseError) {
         console.error("[v0] Failed to parse Lichess game:", parseError)
@@ -301,51 +316,8 @@ function extractEcoCode(pgn: string): string | undefined {
   return ecoMatch ? ecoMatch[1] : undefined
 }
 
-// ECO Code to Human Readable Opening Name
-const ECO_TO_OPENING: Record<string, string> = {
-  "A00": "Irregular Opening",
-  "A01": "Larsen's Opening",
-  "A02": "Bird's Opening",
-  "A04": "Reti Opening",
-  "A40": "Queen's Pawn Game",
-  "A43": "Old Indian Defense",
-  "A45": "Trompowsky Attack",
-  "B00": "King's Pawn Opening",
-  "B01": "Scandinavian Defense",
-  "B02": "Alekhine's Defense",
-  "B06": "Modern Defense",
-  "B10": "Caro-Kann Defense",
-  "B12": "Caro-Kann Defense - Advance Variation",
-  "B15": "Caro-Kann Defense - Slav Variation",
-  "B20": "Sicilian Defense",
-  "B30": "Sicilian Defense - Closed",
-  "B40": "Sicilian Defense - Unusual Variations",
-  "B50": "Sicilian Defense - Anti-6.Bg5 Lines",
-  "B60": "Sicilian Defense - Richter-Rauzer",
-  "B80": "Sicilian Defense - Open",
-  "B90": "Sicilian Defense - Najdorf",
-  "C00": "French Defense",
-  "C10": "French Defense - Advanced Variation",
-  "C40": "King's Pawn Game",
-  "C42": "Russian Game (Petrov's Defense)",
-  "C50": "Italian Game",
-  "C60": "Ruy Lopez",
-  "C80": "Ruy Lopez - Open",
-  "D00": "Closed Game",
-  "D04": "Queen's Pawn Game",
-  "D10": "Slav Defense",
-  "D30": "Semi-Slav Defense",
-  "D40": "Semi-Slav Defense",
-  "D50": "Semi-Slav Defense",
-  "D60": "Queen's Gambit Declined",
-  "D80": "Queen's Gambit - Slav",
-  "E00": "Queen's Pawn Game",
-  "E10": "Queen's Pawn Game",
-  "E20": "Nimzo-Indian Defense",
-  "E60": "King's Indian Defense",
-  "E70": "King's Indian Defense",
-  "E80": "King's Indian Attack",
-}
+// ECO Code to Human Readable Opening Name - now uses the complete eco-codes.json
+const ECO_TO_OPENING: Record<string, string> = ECO_CODES
 
 function getOpeningName(ecoCode?: string): string {
   if (!ecoCode) return "Unknown Opening"
@@ -1156,11 +1128,47 @@ function generateHighlights(games: ChessGame[]): HighlightGame[] {
   const wins = games.filter((g) => g.result === "win")
   if (wins.length > 0) {
     const bestWin = wins.reduce((best, current) => (current.opponentRating > best.opponentRating ? current : best))
+    const gameUrl = bestWin.id.includes("http") ? bestWin.id : `https://www.chess.com/game/live/${bestWin.id}`
 
     highlights.push({
       type: "best",
-      game: bestWin,
-      reason: `You defeated an opponent rated ${bestWin.opponentRating}!`,
+      game: { ...bestWin, gameUrl },
+      reason: `A masterpiece! You defeated an opponent rated ${bestWin.opponentRating} with precision!`,
+    })
+  }
+
+  // Find longest game
+  const sortedByLength = [...games].sort((a, b) => (b.moveCount || 0) - (a.moveCount || 0))
+  if (sortedByLength.length > 0) {
+    const longestGame = sortedByLength[0]
+    const gameUrl = longestGame.id.includes("http") ? longestGame.id : `https://www.chess.com/game/live/${longestGame.id}`
+    highlights.push({
+      type: "longest",
+      game: { ...longestGame, gameUrl },
+      reason: `Your longest battle - ${longestGame.moveCount || 0} moves of intense chess!`,
+    })
+  }
+
+  // Find fastest win
+  const fastWins = wins.sort((a, b) => (a.moveCount || Infinity) - (b.moveCount || Infinity))
+  if (fastWins.length > 0) {
+    const fastest = fastWins[0]
+    const gameUrl = fastest.id.includes("http") ? fastest.id : `https://www.chess.com/game/live/${fastest.id}`
+    highlights.push({
+      type: "fastest",
+      game: { ...fastest, gameUrl },
+      reason: `Lightning quick! Victory in just ${fastest.moveCount || 0} moves!`,
+    })
+  }
+
+  // Find most moves game
+  if (sortedByLength.length > 1) {
+    const mostMoves = sortedByLength[0]
+    const gameUrl = mostMoves.id.includes("http") ? mostMoves.id : `https://www.chess.com/game/live/${mostMoves.id}`
+    highlights.push({
+      type: "most_moves",
+      game: { ...mostMoves, gameUrl },
+      reason: `Your battle of endurance - ${mostMoves.moveCount || 0} moves!`,
     })
   }
 
@@ -1314,6 +1322,9 @@ function analyzePlaystyle(games: ChessGame[]): PlaystyleAnalysis {
     ? Number(Object.entries(hourCounts).sort((a: any, b: any) => b[1] - a[1])[0][0])
     : undefined
 
+  // Get game quality metrics
+  const qualityMetrics = calculateGameQualityMetrics(games)
+
   return {
     aggressiveScore,
     positionalScore,
@@ -1328,6 +1339,10 @@ function analyzePlaystyle(games: ChessGame[]): PlaystyleAnalysis {
     timeDayNight: { day: dayGames, night: nightGames },
     weekdaysVsWeekends: { weekdays: weekdayGames, weekends: weekendGames },
     mostActiveHour,
+    averageAccuracy: qualityMetrics.averageAccuracy,
+    totalBlunders: qualityMetrics.totalBlunders,
+    totalMistakes: qualityMetrics.totalMistakes,
+    totalInaccuracies: qualityMetrics.totalInaccuracies,
   }
 }
 

@@ -6,17 +6,20 @@ import { Trophy, AlertTriangle, Play, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export function HighlightSlide({ data }: { data: ChessWrapData }) {
-  const highlight = data.highlights[0] || {
+  const bestHighlight = data.highlights.find(h => h.type === "best") || data.highlights[0]
+  const highlight = bestHighlight || {
     type: "best",
     reason: "A tactical masterpiece with 98% accuracy.",
     game: {
       opponent: "GrandMaster_2025",
       date: "Oct 12, 2025",
       result: "win",
+      gameUrl: "https://www.chess.com/game/live/1",
     },
   }
 
   const isBest = highlight.type === "best"
+  const gameUrl = highlight.game?.gameUrl || `https://www.chess.com/game/live/${Math.random().toString(36).substr(2, 9)}`
 
   return (
     <div
@@ -78,10 +81,12 @@ export function HighlightSlide({ data }: { data: ChessWrapData }) {
           <p className="text-sm font-medium leading-relaxed italic">"{highlight.reason}"</p>
         </div>
 
-        <Button variant="outline" className="w-full rounded-2xl h-12 border-white/10 hover:bg-white/5 bg-transparent">
-          View Full Replay
-          <ChevronRight className="w-4 h-4 ml-1" />
-        </Button>
+        <a href={gameUrl} target="_blank" rel="noopener noreferrer" className="w-full">
+          <Button variant="outline" className="w-full rounded-2xl h-12 border-white/10 hover:bg-white/5 bg-transparent">
+            View Full Replay
+            <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </a>
       </div>
     </div>
   )
