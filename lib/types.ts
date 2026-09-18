@@ -227,6 +227,8 @@ export interface TacticalStats {
   queensideCastles: number
   uncastledGames: number
   avgCastlingMove: number | null
+  avgIsolatedPawns: number | null
+  avgDoubledPawns: number | null
 }
 
 export interface ChessWrapData {

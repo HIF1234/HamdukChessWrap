@@ -53,6 +53,23 @@ export function PlaystyleSlide({ data }: { data: ChessWrapData }) {
             {data.tacticalStats.uncastledGames === 1 ? "" : "s"} this year.
           </p>
         )}
+
+        {(data.tacticalStats.avgIsolatedPawns !== null || data.tacticalStats.avgDoubledPawns !== null) && (
+          <div className="grid grid-cols-2 gap-8 pt-2 border-t border-white/5">
+            <div className="space-y-1 pt-4">
+              <p className="text-2xl font-black">{data.tacticalStats.avgIsolatedPawns ?? "—"}</p>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                Avg. Isolated Pawns / Game
+              </p>
+            </div>
+            <div className="space-y-1 pt-4">
+              <p className="text-2xl font-black">{data.tacticalStats.avgDoubledPawns ?? "—"}</p>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                Avg. Doubled Pawns / Game
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <motion.div

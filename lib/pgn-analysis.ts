@@ -19,6 +19,34 @@ const EMPTY_STATS: TacticalStats = {
   queensideCastles: 0,
   uncastledGames: 0,
   avgCastlingMove: null,
+  avgIsolatedPawns: null,
+  avgDoubledPawns: null,
+}
+
+const MIDDLEGAME_PLY = 40 // ~move 20 — a stable point to snapshot pawn structure
+
+// Counts isolated and doubled pawns for one color on a given board snapshot.
+function countPawnStructure(board: ReturnType<Chess["board"]>, color: "w" | "b") {
+  const fileCounts = new Array(8).fill(0)
+  for (const row of board) {
+    for (const square of row) {
+      if (square && square.type === "p" && square.color === color) {
+        const file = square.square.charCodeAt(0) - "a".charCodeAt(0)
+        fileCounts[file]++
+      }
+    }
+  }
+
+  let isolated = 0
+  let doubled = 0
+  for (let file = 0; file < 8; file++) {
+    if (fileCounts[file] === 0) continue
+    if (fileCounts[file] > 1) doubled += fileCounts[file] - 1
+    const hasNeighbor = (file > 0 && fileCounts[file - 1] > 0) || (file < 7 && fileCounts[file + 1] > 0)
+    if (!hasNeighbor) isolated += fileCounts[file]
+  }
+
+  return { isolated, doubled }
 }
 
 // Does the side to move in this position have a checkmating move available?
@@ -47,6 +75,9 @@ export function computeTacticalStats(games: ChessGame[]): TacticalStats {
   let currentDrawStreak = 0
   let castlingMoveSum = 0
   let castlingMoveCount = 0
+  let isolatedPawnSum = 0
+  let doubledPawnSum = 0
+  let pawnStructureGames = 0
 
   for (const game of games) {
     if (game.result === "draw") {
@@ -107,6 +138,17 @@ export function computeTacticalStats(games: ChessGame[]): TacticalStats {
 
     if (!userCastled) stats.uncastledGames++
 
+    const snapshotPly = Math.min(MIDDLEGAME_PLY, history.length) - 1
+    if (snapshotPly >= 0) {
+      const snapshot = new Chess()
+      for (let i = 0; i <= snapshotPly; i++) snapshot.move(history[i].san)
+      const userColorChar = userIsWhite ? "w" : "b"
+      const { isolated, doubled } = countPawnStructure(snapshot.board(), userColorChar)
+      isolatedPawnSum += isolated
+      doubledPawnSum += doubled
+      pawnStructureGames++
+    }
+
     const lastMove = history[history.length - 1]
     if (game.result === "win" && lastMove.san.endsWith("#")) {
       const moveCount = Math.ceil(history.length / 2)
@@ -124,6 +166,8 @@ export function computeTacticalStats(games: ChessGame[]): TacticalStats {
   }
 
   stats.avgCastlingMove = castlingMoveCount > 0 ? Math.round((castlingMoveSum / castlingMoveCount) * 10) / 10 : null
+  stats.avgIsolatedPawns = pawnStructureGames > 0 ? Math.round((isolatedPawnSum / pawnStructureGames) * 10) / 10 : null
+  stats.avgDoubledPawns = pawnStructureGames > 0 ? Math.round((doubledPawnSum / pawnStructureGames) * 10) / 10 : null
 
   return stats
 }
