@@ -9,18 +9,23 @@ import { WRAP_YEAR } from "@/lib/constants"
 export function HighlightSlide({ data }: { data: ChessWrapData }) {
   const bestHighlight = data.highlights.find(h => h.type === "best") || data.highlights[0]
   const highlight = bestHighlight || {
-    type: "best",
+    type: "best" as const,
     reason: "A tactical masterpiece with 98% accuracy.",
     game: {
-      opponent: `GrandMaster_${WRAP_YEAR}`,
-      date: `Oct 12, ${WRAP_YEAR}`,
-      result: "win",
+      white: "You",
+      black: `GrandMaster_${WRAP_YEAR}`,
+      userColor: "white" as const,
+      date: new Date(`${WRAP_YEAR}-10-12`),
       gameUrl: "https://www.chess.com/game/live/1",
     },
   }
 
   const isBest = highlight.type === "best"
-  const gameUrl = highlight.game?.gameUrl || `https://www.chess.com/game/live/${Math.random().toString(36).substr(2, 9)}`
+  const opponent = highlight.game.userColor === "white" ? highlight.game.black : highlight.game.white
+  const gameDate = highlight.game.date
+    ? new Date(highlight.game.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : "Date"
+  const gameUrl = highlight.game?.gameUrl || "https://www.chess.com"
 
   return (
     <div
@@ -75,9 +80,9 @@ export function HighlightSlide({ data }: { data: ChessWrapData }) {
         <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-1">
           <div className="flex justify-between items-center">
             <p className="text-[10px] text-muted-foreground uppercase font-bold">
-              vs {highlight.game.opponent || "Opponent"}
+              vs {opponent || "Opponent"}
             </p>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold">{highlight.game.date || "Date"}</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold">{gameDate}</p>
           </div>
           <p className="text-sm font-medium leading-relaxed italic">"{highlight.reason}"</p>
         </div>

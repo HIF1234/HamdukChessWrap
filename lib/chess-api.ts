@@ -18,6 +18,7 @@ import type {
 } from "./types"
 import { createBrowserClient } from "@supabase/ssr"
 import ecoCodesData from "./eco-codes.json"
+import { analyzeGameWithEngine } from "./engine-analysis"
 
 const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -346,8 +347,10 @@ function isGambit(opening: string, ecoCode?: string): boolean {
   ]
 
   const lowerOpening = opening.toLowerCase()
-  return gambitKeywords.some((keyword) => lowerOpening.includes(keyword)) || 
-         (ecoCode && (ecoCode.startsWith("C3") || ecoCode.startsWith("C4") || ecoCode.startsWith("C5")))
+  return (
+    gambitKeywords.some((keyword) => lowerOpening.includes(keyword)) ||
+    Boolean(ecoCode && (ecoCode.startsWith("C3") || ecoCode.startsWith("C4") || ecoCode.startsWith("C5")))
+  )
 }
 
 // Get opening name from ECO code
@@ -764,96 +767,87 @@ function calculateOpeningStats(games: ChessGame[]): OpeningStats[] {
     .slice(0, 10)
 }
 
-function calculateGameQualityMetrics(games: ChessGame[]): {
+// Real Stockfish accuracy/blunder analysis is expensive (each position needs
+// an engine search), so we only run it over a bounded, representative sample
+// of the season rather than every game, then scale the counts up to the full
+// season size. `gamesAnalyzed` on the result tells the UI how big that sample
+// was so it can be honest about it instead of implying an exhaustive review.
+const MAX_GAMES_TO_ANALYZE = 12
+
+function pickAnalysisSample(games: ChessGame[]): ChessGame[] {
+  const priorityIds = new Set<string>()
+
+  const highestRatedWin = games
+    .filter((g) => g.result === "win")
+    .sort((a, b) => b.opponentRating - a.opponentRating)[0]
+  if (highestRatedWin) priorityIds.add(highestRatedWin.id)
+
+  const worstLoss = games
+    .filter((g) => g.result === "loss")
+    .sort((a, b) => a.opponentRating - b.opponentRating)[0]
+  if (worstLoss) priorityIds.add(worstLoss.id)
+
+  const remainingSlots = Math.max(0, MAX_GAMES_TO_ANALYZE - priorityIds.size)
+  if (remainingSlots > 0) {
+    const step = Math.max(1, Math.floor(games.length / remainingSlots))
+    for (let i = 0; i < games.length && priorityIds.size < MAX_GAMES_TO_ANALYZE; i += step) {
+      priorityIds.add(games[i].id)
+    }
+  }
+
+  return games.filter((g) => priorityIds.has(g.id))
+}
+
+async function calculateGameQualityMetrics(games: ChessGame[]): Promise<{
   averageAccuracy: number
-  bestAccuracyGame: ChessGame | null
-  worstAccuracyGame: ChessGame | null
   totalBlunders: number
   totalMistakes: number
   totalInaccuracies: number
   averageACPL: number
-} {
+  gamesAnalyzed: number
+}> {
+  const empty = { averageAccuracy: 0, totalBlunders: 0, totalMistakes: 0, totalInaccuracies: 0, averageACPL: 0, gamesAnalyzed: 0 }
+  if (games.length === 0) return empty
+
+  const sample = pickAnalysisSample(games)
+
   let accuracySum = 0
-  let accuracyCount = 0
-  let bestAccuracyGame: ChessGame | null = null
-  let worstAccuracyGame: ChessGame | null = null
-  let bestAccuracy = 0
-  let worstAccuracy = 100
-  let blunders = 0
-  let mistakes = 0
-  let inaccuracies = 0
   let acplSum = 0
-  let acplCount = 0
+  let blunderSum = 0
+  let mistakeSum = 0
+  let inaccuracySum = 0
+  let analyzed = 0
 
-  for (const game of games) {
-    // Calculate accuracy (estimated from game result and rating)
-    const accuracy = game.accuracy || estimateAccuracy(game)
-    
-    if (accuracy > 0) {
-      accuracySum += accuracy
-      accuracyCount++
-      
-      if (accuracy > bestAccuracy) {
-        bestAccuracy = accuracy
-        bestAccuracyGame = game
-      }
-      
-      if (accuracy < worstAccuracy) {
-        worstAccuracy = accuracy
-        worstAccuracyGame = game
-      }
-      
-      // Estimate error types based on accuracy
-      if (accuracy < 70) blunders++
-      if (accuracy >= 70 && accuracy < 85) mistakes++
-      if (accuracy >= 85 && accuracy < 92) inaccuracies++
+  for (const game of sample) {
+    if (!game.pgn) continue
+    let result: Awaited<ReturnType<typeof analyzeGameWithEngine>> = null
+    try {
+      result = await analyzeGameWithEngine(game.pgn, game.userColor)
+    } catch (error) {
+      console.error("[v0] Engine analysis failed for game", game.id, error)
     }
+    if (!result) continue
 
-    // Estimate ACPL from rating difference and game outcome
-    const estimatedACPL = estimateACPL(game)
-    if (estimatedACPL > 0) {
-      acplSum += estimatedACPL
-      acplCount++
-    }
+    accuracySum += result.accuracy
+    acplSum += result.acpl
+    blunderSum += result.blunders
+    mistakeSum += result.mistakes
+    inaccuracySum += result.inaccuracies
+    analyzed++
   }
+
+  if (analyzed === 0) return empty
+
+  const scale = games.length / analyzed
 
   return {
-    averageAccuracy: accuracyCount > 0 ? Math.round((accuracySum / accuracyCount) * 10) / 10 : 0,
-    bestAccuracyGame,
-    worstAccuracyGame,
-    totalBlunders: blunders,
-    totalMistakes: mistakes,
-    totalInaccuracies: inaccuracies,
-    averageACPL: acplCount > 0 ? Math.round((acplSum / acplCount) * 10) / 10 : 0,
+    averageAccuracy: Math.round((accuracySum / analyzed) * 10) / 10,
+    averageACPL: Math.round((acplSum / analyzed) * 10) / 10,
+    totalBlunders: Math.round((blunderSum / analyzed) * scale),
+    totalMistakes: Math.round((mistakeSum / analyzed) * scale),
+    totalInaccuracies: Math.round((inaccuracySum / analyzed) * scale),
+    gamesAnalyzed: analyzed,
   }
-}
-
-// Estimate accuracy based on game result and rating comparison
-function estimateAccuracy(game: ChessGame): number {
-  const ratingDiff = game.opponentRating - game.userRating
-  
-  if (game.result === "win" && ratingDiff < 0) {
-    return 88 + Math.random() * 10
-  } else if (game.result === "win" && ratingDiff > 0) {
-    return 90 + Math.random() * 8
-  } else if (game.result === "draw") {
-    return 80 + Math.random() * 12
-  } else {
-    return 70 + Math.random() * 20
-  }
-}
-
-// Estimate ACPL (Average Centipawn Loss)
-function estimateACPL(game: ChessGame): number {
-  const ratingDiff = game.opponentRating - game.userRating
-  
-  let baseACPL = 50
-  
-  if (game.result === "loss") baseACPL = 120
-  else if (game.result === "draw") baseACPL = 75
-  else if (ratingDiff > 0) baseACPL = 40
-  
-  return baseACPL + (Math.random() * 30 - 15)
 }
 
 // Calculate performance highlights
@@ -1070,7 +1064,7 @@ async function generateAIInsights(
   games: ChessGame[],
   playerStats: PlayerStats,
   openings: OpeningStats[],
-  narrationMode: "coach" | "roast",
+  narrationMode: "coach" | "roast" | "neutral",
 ): Promise<AIInsights> {
   const winRate = playerStats.winRate
   const topOpening = openings[0]?.name || "various openings"
@@ -1103,10 +1097,10 @@ async function generateAIInsights(
   let coachMode: string | undefined
   let roastMode: string | undefined
 
-  if (narrationMode === "coach") {
-    coachMode = `You've shown impressive dedication as "${persona}". With ${playerStats.activeDays} active days, your commitment is clear. Your ${topOpening} is a weapon, but let's tighten up your ${weaknesses[0] || "mid-game"} to keep that rating climbing.`
-  } else {
+  if (narrationMode === "roast") {
     roastMode = `So you're "${persona}"? That's a fancy way of saying you played ${totalGames} games just to end up right where you started. That ${playerStats.longestWinStreak}-game win streak was clearly a fluke before reality (and your opponents) set back in.`
+  } else {
+    coachMode = `You've shown impressive dedication as "${persona}". With ${playerStats.activeDays} active days, your commitment is clear. Your ${topOpening} is a weapon, but let's tighten up your ${weaknesses[0] || "mid-game"} to keep that rating climbing.`
   }
 
   return {
@@ -1261,7 +1255,7 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
     const colorStats = calculateColorStats(games)
     const monthlyActivity = calculateMonthlyActivity(games)
     const ratingProgression = getRatingTimeline(games)
-    const playstyleAnalysis = analyzePlaystyle(games)
+    const playstyleAnalysis = await analyzePlaystyle(games)
     const highlights = generateHighlights(games)
     const trainingPlan = generateTrainingPlan(playerStats, openingStats, playstyleAnalysis)
     const aiInsights = await generateAIInsights(games, playerStats, openingStats, narrationMode)
@@ -1293,7 +1287,7 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
 }
 
 // Analyze playstyle
-function analyzePlaystyle(games: ChessGame[]): PlaystyleAnalysis {
+async function analyzePlaystyle(games: ChessGame[]): Promise<PlaystyleAnalysis> {
   const totalMoves = games.reduce((sum, g) => {
     const moves = g.moves.split(" ").filter((m) => m.trim()).length
     return sum + moves
@@ -1306,24 +1300,8 @@ function analyzePlaystyle(games: ChessGame[]): PlaystyleAnalysis {
   const aggressiveScore = Math.min(100, Math.round((shortGames / games.length) * 150))
   const positionalScore = 100 - aggressiveScore
 
-  const hours = games.map((g) => g.date.getHours())
-  const dayGames = hours.filter((h) => h >= 6 && h < 18).length
-  const nightGames = games.length - dayGames
-
-  const days = games.map((g) => g.date.getDay())
-  const weekendGames = days.filter((d) => d === 0 || d === 6).length
-  const weekdayGames = games.length - weekendGames
-
-  const hourCounts = hours.reduce((acc, h) => {
-    acc[h] = (acc[h] || 0) + 1
-    return acc
-  }, {} as any)
-  const mostActiveHour = Object.entries(hourCounts).sort((a: any, b: any) => b[1] - a[1])[0]
-    ? Number(Object.entries(hourCounts).sort((a: any, b: any) => b[1] - a[1])[0][0])
-    : undefined
-
   // Get game quality metrics
-  const qualityMetrics = calculateGameQualityMetrics(games)
+  const qualityMetrics = await calculateGameQualityMetrics(games)
 
   return {
     aggressiveScore,
@@ -1333,16 +1311,15 @@ function analyzePlaystyle(games: ChessGame[]): PlaystyleAnalysis {
     timeTroubleGames: 0,
     averageGameLength: avgGameLength,
     riskLevel: aggressiveScore > 60 ? "High" : aggressiveScore > 40 ? "Medium" : "Low",
-    comebackRate: Math.round(Math.random() * 100),
-    clutchWins: Math.floor(games.length * 0.05),
-    tiltTendency: Math.round(Math.random() * 100),
-    timeDayNight: { day: dayGames, night: nightGames },
-    weekdaysVsWeekends: { weekdays: weekdayGames, weekends: weekendGames },
-    mostActiveHour,
+    comebackRate: Math.round(calculateComebackRate(games) * 10) / 10,
+    clutchWins: calculateClutchWins(games),
+    tiltTendency: Math.round(calculateTiltTendency(games) * 10) / 10,
     averageAccuracy: qualityMetrics.averageAccuracy,
     totalBlunders: qualityMetrics.totalBlunders,
     totalMistakes: qualityMetrics.totalMistakes,
     totalInaccuracies: qualityMetrics.totalInaccuracies,
+    averageACPL: qualityMetrics.averageACPL,
+    gamesAnalyzed: qualityMetrics.gamesAnalyzed,
   }
 }
 

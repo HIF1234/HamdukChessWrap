@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type ComponentType } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Play, Pause, Share2, Volume2, VolumeX } from "lucide-react"
 import type { ChessWrapData } from "@/lib/types"
@@ -159,7 +159,12 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
     }
   }
 
-  const CurrentSlideComponent = slides[currentSlide].component
+  // The generic fallback branch below only ever renders slides whose component
+  // accepts { data, shareId } (enforced by the id exclusion list at the call site).
+  const CurrentSlideComponent = slides[currentSlide].component as ComponentType<{
+    data: ChessWrapData
+    shareId: string | null
+  }>
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col overflow-hidden">

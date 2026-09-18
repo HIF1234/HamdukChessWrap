@@ -75,7 +75,9 @@ export interface OpeningStats {
   draws: number
   winRate: number
   ecoCode?: string // Added ECO code
-  asWhite?: boolean // Track if opening is played as white or black
+  asWhite?: number // Games played as white with this opening
+  asBlack?: number // Games played as black with this opening
+  isGambit?: boolean // Whether this opening is classified as a gambit
 }
 
 export interface ColorStats {
@@ -125,13 +127,13 @@ export interface PlaystyleAnalysis {
   comebackRate: number
   clutchWins: number
   tiltTendency: number
-  // Added game quality metrics
+  // Added game quality metrics (real Stockfish analysis over a sampled subset of games)
   averageAccuracy?: number
+  averageACPL?: number
   totalBlunders?: number
   totalMistakes?: number
   totalInaccuracies?: number
-  bestAccuracyGame?: number
-  worstAccuracyGame?: number
+  gamesAnalyzed?: number
 }
 
 export interface AIInsights {

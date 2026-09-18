@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, type Variants } from 'framer-motion'
 import { ChessWrapData } from '@/lib/types'
 import { Zap, TrendingUp, AlertCircle, Target } from 'lucide-react'
 
@@ -9,11 +9,12 @@ interface GameQualitySlideProps {
 }
 
 export function GameQualitySlide({ data }: GameQualitySlideProps) {
-  const accuracy = data.playstyle.averageAccuracy || 85
+  const accuracy = data.playstyle.averageAccuracy || 0
   const blunders = data.playstyle.totalBlunders || 0
   const mistakes = data.playstyle.totalMistakes || 0
   const inaccuracies = data.playstyle.totalInaccuracies || 0
-  const acpl = 65
+  const acpl = data.playstyle.averageACPL || 0
+  const gamesAnalyzed = data.playstyle.gamesAnalyzed || 0
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -26,7 +27,7 @@ export function GameQualitySlide({ data }: GameQualitySlideProps) {
     },
   }
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
@@ -142,8 +143,13 @@ export function GameQualitySlide({ data }: GameQualitySlideProps) {
       </motion.div>
 
       {/* Footer insight */}
-      <motion.div variants={itemVariants} className="mt-8 text-center text-sm text-gray-400">
+      <motion.div variants={itemVariants} className="mt-8 text-center text-sm text-gray-400 space-y-1">
         <p>Your accuracy of <span className="text-cyan-400 font-semibold">{accuracy.toFixed(1)}%</span> indicates <span className="text-cyan-400 font-semibold">strong positional understanding</span></p>
+        {gamesAnalyzed > 0 && (
+          <p className="text-xs text-gray-500">
+            Based on Stockfish analysis of {gamesAnalyzed} representative game{gamesAnalyzed === 1 ? "" : "s"} this year
+          </p>
+        )}
       </motion.div>
     </div>
   )
