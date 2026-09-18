@@ -127,9 +127,6 @@ export interface RatingProgression {
 export interface PlaystyleAnalysis {
   aggressiveScore: number
   positionalScore: number
-  earlyQueenMoves: number
-  sacrificeCount: number
-  timeTroubleGames: number
   averageGameLength: number
   riskLevel: "Low" | "Medium" | "High"
   comebackRate: number
@@ -224,6 +221,10 @@ export interface TacticalStats {
   fiftyMoveDraws: number
   shortDecisiveGames: number
   longestDrawStreak: number
+  kingsideCastles: number
+  queensideCastles: number
+  uncastledGames: number
+  avgCastlingMove: number | null
 }
 
 export interface ChessWrapData {

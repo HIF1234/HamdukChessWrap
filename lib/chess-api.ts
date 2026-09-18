@@ -1524,9 +1524,6 @@ async function analyzePlaystyle(games: ChessGame[]): Promise<PlaystyleAnalysis> 
   return {
     aggressiveScore,
     positionalScore,
-    earlyQueenMoves: 0,
-    sacrificeCount: 0,
-    timeTroubleGames: 0,
     averageGameLength: avgGameLength,
     riskLevel: aggressiveScore > 60 ? "High" : aggressiveScore > 40 ? "Medium" : "Low",
     comebackRate: Math.round(calculateComebackRate(games) * 10) / 10,

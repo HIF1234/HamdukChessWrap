@@ -15,6 +15,10 @@ const EMPTY_STATS: TacticalStats = {
   fiftyMoveDraws: 0,
   shortDecisiveGames: 0,
   longestDrawStreak: 0,
+  kingsideCastles: 0,
+  queensideCastles: 0,
+  uncastledGames: 0,
+  avgCastlingMove: null,
 }
 
 // Does the side to move in this position have a checkmating move available?
@@ -41,6 +45,8 @@ export function computeTacticalStats(games: ChessGame[]): TacticalStats {
 
   const stats: TacticalStats = { ...EMPTY_STATS }
   let currentDrawStreak = 0
+  let castlingMoveSum = 0
+  let castlingMoveCount = 0
 
   for (const game of games) {
     if (game.result === "draw") {
@@ -68,6 +74,8 @@ export function computeTacticalStats(games: ChessGame[]): TacticalStats {
       stats.shortDecisiveGames++
     }
 
+    let userCastled = false
+
     const replay = new Chess()
     for (let i = 0; i < history.length; i++) {
       const move = history[i]
@@ -86,7 +94,18 @@ export function computeTacticalStats(games: ChessGame[]): TacticalStats {
       if (move.flags.includes("e")) stats.enPassantCaptures++
       if (move.promotion && move.promotion !== "q") stats.underpromotions++
       if (movedByUser && (move.san.includes("+") || move.san.endsWith("#"))) stats.totalChecksDelivered++
+
+      if (movedByUser && (move.flags.includes("k") || move.flags.includes("q"))) {
+        userCastled = true
+        if (move.flags.includes("k")) stats.kingsideCastles++
+        else stats.queensideCastles++
+        const moveNumber = Math.floor(i / 2) + 1
+        castlingMoveSum += moveNumber
+        castlingMoveCount++
+      }
     }
+
+    if (!userCastled) stats.uncastledGames++
 
     const lastMove = history[history.length - 1]
     if (game.result === "win" && lastMove.san.endsWith("#")) {
@@ -103,6 +122,8 @@ export function computeTacticalStats(games: ChessGame[]): TacticalStats {
       else if (replay.isDraw()) stats.fiftyMoveDraws++
     }
   }
+
+  stats.avgCastlingMove = castlingMoveCount > 0 ? Math.round((castlingMoveSum / castlingMoveCount) * 10) / 10 : null
 
   return stats
 }

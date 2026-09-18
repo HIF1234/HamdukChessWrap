@@ -32,14 +32,27 @@ export function PlaystyleSlide({ data }: { data: ChessWrapData }) {
 
         <div className="grid grid-cols-2 gap-8 pt-4">
           <div className="space-y-1">
-            <p className="text-4xl font-black">{data.playstyle.sacrificeCount}</p>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Sacrifices</p>
+            <p className="text-4xl font-black">
+              {data.tacticalStats.kingsideCastles}/{data.tacticalStats.queensideCastles}
+            </p>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+              Kingside / Queenside Castles
+            </p>
           </div>
           <div className="space-y-1">
-            <p className="text-4xl font-black">{data.playstyle.earlyQueenMoves}</p>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Queen Charges</p>
+            <p className="text-4xl font-black">
+              {data.tacticalStats.avgCastlingMove ?? "—"}
+            </p>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Avg. Castling Move</p>
           </div>
         </div>
+
+        {data.tacticalStats.uncastledGames > 0 && (
+          <p className="text-xs text-muted-foreground italic">
+            You left your king in the center in {data.tacticalStats.uncastledGames} game
+            {data.tacticalStats.uncastledGames === 1 ? "" : "s"} this year.
+          </p>
+        )}
       </div>
 
       <motion.div
