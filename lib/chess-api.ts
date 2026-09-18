@@ -15,6 +15,7 @@ import type {
   TimeControl,
   Achievement,
   PlayHabits,
+  ActivityStats,
 } from "./types"
 import { createBrowserClient } from "@supabase/ssr"
 import ecoCodesData from "./eco-codes.json"
@@ -90,6 +91,7 @@ export async function fetchChessDotComGames(username: string, year: number): Pro
               opponentRating,
               ecoCode,
               moveCount,
+              rated: game.rated !== false,
             })
           }
         }
@@ -279,6 +281,7 @@ export async function fetchLichessGames(username: string, year: number): Promise
           opponentRating,
           ecoCode,
           moveCount,
+          rated: game.rated !== false,
         })
       } catch (parseError) {
         console.error("[v0] Failed to parse Lichess game:", parseError)
@@ -992,6 +995,58 @@ function calculateColorStats(games: ChessGame[]): ColorStats[] {
   ]
 }
 
+const MILESTONE_THRESHOLDS = [100, 250, 500, 1000, 1500, 2000, 5000, 10000]
+
+// Real activity stats — all counted directly from the fetched games, nothing estimated.
+function calculateActivityStats(games: ChessGame[]): ActivityStats {
+  const dayCount = new Map<string, number>()
+  for (const game of games) {
+    const key = game.date.toDateString()
+    dayCount.set(key, (dayCount.get(key) || 0) + 1)
+  }
+
+  let mostActiveDay: ActivityStats["mostActiveDay"] = null
+  for (const [dateStr, count] of dayCount.entries()) {
+    if (!mostActiveDay || count > mostActiveDay.games) {
+      mostActiveDay = { date: dateStr, games: count }
+    }
+  }
+
+  const monthCount = new Map<string, number>()
+  for (const game of games) {
+    const month = game.date.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    monthCount.set(month, (monthCount.get(month) || 0) + 1)
+  }
+  let quietestMonth: string | null = null
+  let quietestMonthGames = Infinity
+  for (const [month, count] of monthCount.entries()) {
+    if (count < quietestMonthGames) {
+      quietestMonthGames = count
+      quietestMonth = month
+    }
+  }
+
+  const sortedByDate = [...games].sort((a, b) => a.date.getTime() - b.date.getTime())
+  const milestoneGames = MILESTONE_THRESHOLDS.filter((n) => n <= sortedByDate.length).map((milestone) => ({
+    milestone,
+    date: sortedByDate[milestone - 1].date,
+  }))
+
+  const totalMovesPlayed = games.reduce((sum, g) => sum + (g.moveCount || 0), 0)
+  const ratedGames = games.filter((g) => g.rated !== false).length
+  const casualGames = games.length - ratedGames
+
+  return {
+    mostActiveDay,
+    quietestMonth,
+    quietestMonthGames: quietestMonth ? quietestMonthGames : 0,
+    milestoneGames,
+    totalMovesPlayed,
+    ratedGames,
+    casualGames,
+  }
+}
+
 function calculateMonthlyActivity(games: ChessGame[]): MonthlyActivity[] {
   const months = new Map<string, { games: number; wins: number; losses: number; draws: number }>()
 
@@ -1263,6 +1318,7 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
     const playHabits = calculatePlayHabits(games)
     const achievements = generateAchievements(games, playerStats, playstyleAnalysis)
     const tacticalStats = computeTacticalStats(games)
+    const activityStats = calculateActivityStats(games)
 
     return {
       player: playerStats,
@@ -1278,6 +1334,7 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
       playHabits,
       achievements,
       tacticalStats,
+      activityStats,
       dateRange: {
         start: games[0].date,
         end: games[games.length - 1].date,

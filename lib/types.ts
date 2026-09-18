@@ -23,6 +23,7 @@ export interface ChessGame {
   accuracy?: number // Added accuracy field for game quality
   moveCount?: number // Added move count for game length analysis
   ecoCode?: string // Added ECO code for opening classification
+  rated?: boolean // Real "rated" flag from Chess.com/Lichess API
 }
 
 export interface PlayerStats {
@@ -172,6 +173,18 @@ export interface Achievement {
   icon?: string
 }
 
+// Real activity stats counted directly from the fetched games (dates,
+// rated flag, move counts already returned by the platform APIs).
+export interface ActivityStats {
+  mostActiveDay: { date: string; games: number } | null
+  quietestMonth: string | null
+  quietestMonthGames: number
+  milestoneGames: { milestone: number; date: Date }[]
+  totalMovesPlayed: number
+  ratedGames: number
+  casualGames: number
+}
+
 // Real, zero-cost stats derived purely from legal-move search over each
 // game's actual PGN (chess.js only — no engine, no paid API). See
 // lib/pgn-analysis.ts.
@@ -205,6 +218,7 @@ export interface ChessWrapData {
   playHabits: PlayHabits // Added play habits
   achievements: Achievement[] // Added achievements
   tacticalStats: TacticalStats
+  activityStats: ActivityStats
   dateRange: {
     start: Date
     end: Date
