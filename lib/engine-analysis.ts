@@ -116,15 +116,14 @@ export async function analyzeGameWithEngine(
     return null
   }
 
-  const history = chess.history()
+  // Use chess.js's own before/after FEN per move rather than re-applying SAN
+  // to a fresh board — a manual replay assumes a standard starting position
+  // and can desync (e.g. throwing on castling) for games that don't start
+  // from one, or on any SAN round-trip mismatch.
+  const history = chess.history({ verbose: true })
   if (history.length === 0) return null
 
-  const replay = new Chess()
-  const positions: string[] = [replay.fen()]
-  for (const san of history) {
-    replay.move(san)
-    positions.push(replay.fen())
-  }
+  const positions: string[] = [history[0].before, ...history.map((move) => move.after)]
 
   const step = Math.max(1, Math.floor(positions.length / MAX_SAMPLED_PLIES))
   const sampledIndexes: number[] = []

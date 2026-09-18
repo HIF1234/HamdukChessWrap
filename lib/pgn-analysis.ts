@@ -50,16 +50,10 @@ function countPawnStructure(board: ReturnType<Chess["board"]>, color: "w" | "b")
 }
 
 // Does the side to move in this position have a checkmating move available?
-// Pure legal-move search via chess.js — no engine, no network, no cost.
+// chess.js already annotates mate ("#") on the SAN of each legal move it
+// generates, so this needs no simulation at all — just a string check.
 function hasMateInOne(chess: Chess): boolean {
-  const moves = chess.moves()
-  for (const move of moves) {
-    chess.move(move)
-    const isMate = chess.isCheckmate()
-    chess.undo()
-    if (isMate) return true
-  }
-  return false
+  return chess.moves().some((san) => san.endsWith("#"))
 }
 
 /**
@@ -107,19 +101,19 @@ export function computeTacticalStats(games: ChessGame[]): TacticalStats {
 
     let userCastled = false
 
-    const replay = new Chess()
     for (let i = 0; i < history.length; i++) {
       const move = history[i]
       const movedByWhite = i % 2 === 0
       const movedByUser = movedByWhite === userIsWhite
 
       // A mate existed on the board before this move but wasn't the move played.
-      if (hasMateInOne(replay) && !move.san.endsWith("#")) {
+      // Built from the move's own "before" FEN, so it reflects the true game
+      // state (including any non-standard starting position) rather than a
+      // manually replayed board that can drift out of sync.
+      if (hasMateInOne(new Chess(move.before)) && !move.san.endsWith("#")) {
         if (movedByUser) stats.missedMateInOneByUser++
         else stats.missedMateInOneByOpponent++
       }
-
-      replay.move(move.san)
 
       if (move.captured) stats.totalPiecesCaptured++
       if (move.flags.includes("e")) stats.enPassantCaptures++
@@ -140,8 +134,7 @@ export function computeTacticalStats(games: ChessGame[]): TacticalStats {
 
     const snapshotPly = Math.min(MIDDLEGAME_PLY, history.length) - 1
     if (snapshotPly >= 0) {
-      const snapshot = new Chess()
-      for (let i = 0; i <= snapshotPly; i++) snapshot.move(history[i].san)
+      const snapshot = new Chess(history[snapshotPly].after)
       const userColorChar = userIsWhite ? "w" : "b"
       const { isolated, doubled } = countPawnStructure(snapshot.board(), userColorChar)
       isolatedPawnSum += isolated
@@ -157,11 +150,14 @@ export function computeTacticalStats(games: ChessGame[]): TacticalStats {
       }
     }
 
+    // `parser` still holds the full played-out game (with move history intact,
+    // which threefold repetition detection needs), so check draw type on it
+    // directly rather than re-deriving the final position.
     if (game.result === "draw") {
-      if (replay.isStalemate()) stats.stalemateDraws++
-      else if (replay.isThreefoldRepetition()) stats.threefoldDraws++
-      else if (replay.isInsufficientMaterial()) stats.insufficientMaterialDraws++
-      else if (replay.isDraw()) stats.fiftyMoveDraws++
+      if (parser.isStalemate()) stats.stalemateDraws++
+      else if (parser.isThreefoldRepetition()) stats.threefoldDraws++
+      else if (parser.isInsufficientMaterial()) stats.insufficientMaterialDraws++
+      else if (parser.isDraw()) stats.fiftyMoveDraws++
     }
   }
 
