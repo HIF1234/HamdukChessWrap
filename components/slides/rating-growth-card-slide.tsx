@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, ArrowUp, Zap } from 'lucide-react'
 import type { ChessWrapData } from '@/lib/types'
+import { WRAP_YEAR } from '@/lib/constants'
 
 interface RatingGrowthCardSlideProps {
   data: ChessWrapData
@@ -61,7 +62,7 @@ export function RatingGrowthCardSlide({ data }: RatingGrowthCardSlideProps) {
               variants={itemVariants}
               className="text-emerald-300/60 text-sm uppercase tracking-widest"
             >
-              Your growth throughout 2025
+              Your growth throughout {WRAP_YEAR}
             </motion.p>
           </div>
 

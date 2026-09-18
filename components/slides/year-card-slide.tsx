@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { Trophy, TrendingUp, Zap, Award } from 'lucide-react'
 import type { ChessWrapData } from '@/lib/types'
+import { WRAP_YEAR } from '@/lib/constants'
 
 interface YearCardSlideProps {
   data: ChessWrapData
@@ -55,7 +56,7 @@ export function YearCardSlide({ data }: YearCardSlideProps) {
               variants={itemVariants}
               className="text-sm text-cyan-300/70 uppercase tracking-widest"
             >
-              Your Chess Year 2025
+              Your Chess Year {WRAP_YEAR}
             </motion.p>
           </div>
 

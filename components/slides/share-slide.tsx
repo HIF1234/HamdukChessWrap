@@ -5,6 +5,7 @@ import type { ChessWrapData } from "@/lib/types"
 import { Share2, Download, Trophy, Users, QrCode, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { WRAP_YEAR } from "@/lib/constants"
 
 export function ShareSlide({ data, shareId }: { data: ChessWrapData; shareId: string | null }) {
   const { toast } = useToast()
@@ -23,7 +24,7 @@ export function ShareSlide({ data, shareId }: { data: ChessWrapData; shareId: st
 
     if (navigator.share) {
       navigator.share({
-        title: `My Hamduk Chess Wrap 2025 - ${data.player.username}`,
+        title: `My Hamduk Chess Wrap ${WRAP_YEAR} - ${data.player.username}`,
         text: `I played ${data.player.totalGames} games this year with a ${data.player.winRate}% win rate! Check out my full Chess Wrap.`,
         url: shareUrl,
       })
@@ -85,7 +86,7 @@ export function ShareSlide({ data, shareId }: { data: ChessWrapData; shareId: st
                 Full Wrap
               </p>
             </div>
-            <p className="text-[10px] font-black text-primary tracking-tighter">HAMDUK CHESS 2025</p>
+            <p className="text-[10px] font-black text-primary tracking-tighter">HAMDUK CHESS {WRAP_YEAR}</p>
           </div>
         </div>
       </motion.div>

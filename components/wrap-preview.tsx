@@ -28,6 +28,7 @@ import { ShareSlide } from "@/components/slides/share-slide"
 import { YearCardSlide } from "@/components/slides/year-card-slide"
 import { RatingGrowthCardSlide } from "@/components/slides/rating-growth-card-slide"
 import { PersonalityCardSlide } from "@/components/slides/personality-card-slide"
+import { WRAP_YEAR } from "@/lib/constants"
 
 interface WrapPreviewProps {
   data: ChessWrapData
@@ -186,7 +187,7 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
           </div>
           <div>
             <h3 className="font-bold text-sm">{data.player.username}</h3>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Chess Wrap 2025</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Chess Wrap {WRAP_YEAR}</p>
           </div>
         </div>
         <div className="flex gap-2">

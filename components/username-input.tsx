@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import type { WrapConfig, Platform } from "@/lib/types"
 import { ChevronRight, Loader2, Search, Brain, Flame } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { WRAP_YEAR } from "@/lib/constants"
 
 interface UsernameInputProps {
   onGenerate: (config: WrapConfig) => void
@@ -21,7 +22,7 @@ export function UsernameInput({ onGenerate, isLoading }: UsernameInputProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!username) return
-    onGenerate({ username, platform, year: 2025, narrationMode }) // include narration mode in config
+    onGenerate({ username, platform, year: WRAP_YEAR, narrationMode }) // include narration mode in config
   }
 
   return (

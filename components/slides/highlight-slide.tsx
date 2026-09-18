@@ -4,6 +4,7 @@ import { motion } from "framer-motion"
 import type { ChessWrapData } from "@/lib/types"
 import { Trophy, AlertTriangle, Play, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { WRAP_YEAR } from "@/lib/constants"
 
 export function HighlightSlide({ data }: { data: ChessWrapData }) {
   const bestHighlight = data.highlights.find(h => h.type === "best") || data.highlights[0]
@@ -11,8 +12,8 @@ export function HighlightSlide({ data }: { data: ChessWrapData }) {
     type: "best",
     reason: "A tactical masterpiece with 98% accuracy.",
     game: {
-      opponent: "GrandMaster_2025",
-      date: "Oct 12, 2025",
+      opponent: `GrandMaster_${WRAP_YEAR}`,
+      date: `Oct 12, ${WRAP_YEAR}`,
       result: "win",
       gameUrl: "https://www.chess.com/game/live/1",
     },

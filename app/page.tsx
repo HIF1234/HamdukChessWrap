@@ -10,6 +10,7 @@ import { WrapPreview } from "@/components/wrap-preview"
 import { ComparisonSection } from "@/components/comparison-section" // added comparison section import
 import type { ChessWrapData, WrapConfig } from "@/lib/types"
 import { generateChessWrap, getChessWrapById, saveChessWrap } from "@/lib/chess-api"
+import { WRAP_YEAR } from "@/lib/constants"
 
 export default function LandingPage() {
   const [loading, setLoading] = useState(false)
@@ -47,7 +48,7 @@ export default function LandingPage() {
       } else {
         // show user-friendly error message when account doesn't exist or has no games
         setError(
-          `Sorry, we couldn't find any games for "${config.username}" on ${config.platform === "chess.com" ? "Chess.com" : "Lichess"} in 2025. Please check your username and try again.`
+          `Sorry, we couldn't find any games for "${config.username}" on ${config.platform === "chess.com" ? "Chess.com" : "Lichess"} in ${config.year || WRAP_YEAR}. Please check your username and try again.`
         )
       }
     } catch (error: any) {
@@ -59,7 +60,7 @@ export default function LandingPage() {
         )
       } else if (error.message.includes("No games")) {
         setError(
-          `No games found for "${config.username}" in 2025. Try playing some games first!`
+          `No games found for "${config.username}" in ${config.year || WRAP_YEAR}. Try playing some games first!`
         )
       } else {
         setError("An error occurred while generating your wrap. Please try again.")
