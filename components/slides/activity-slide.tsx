@@ -99,6 +99,44 @@ export function ActivitySlide({ data }: { data: ChessWrapData }) {
             </div>
           </motion.div>
         )}
+
+        {activityStats.bestWeek && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.65 }}
+            className="p-5 rounded-2xl bg-green-500/5 border border-green-500/20 flex items-center gap-3"
+          >
+            <Trophy className="w-6 h-6 text-green-400 shrink-0" />
+            <div className="text-left">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Best Week</p>
+              <p className="text-lg font-bold">{activityStats.bestWeek.winRate.toFixed(0)}% win rate</p>
+              <p className="text-xs text-muted-foreground">
+                {activityStats.bestWeek.games} games, week of{" "}
+                {new Date(activityStats.bestWeek.weekStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {activityStats.worstWeek && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.68 }}
+            className="p-5 rounded-2xl bg-red-500/5 border border-red-500/20 flex items-center gap-3"
+          >
+            <Flag className="w-6 h-6 text-red-400 shrink-0" />
+            <div className="text-left">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Worst Week</p>
+              <p className="text-lg font-bold">{activityStats.worstWeek.winRate.toFixed(0)}% win rate</p>
+              <p className="text-xs text-muted-foreground">
+                {activityStats.worstWeek.games} games, week of{" "}
+                {new Date(activityStats.worstWeek.weekStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </p>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {activityStats.milestoneGames.length > 0 && (

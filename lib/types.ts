@@ -183,6 +183,8 @@ export interface ActivityStats {
   totalMovesPlayed: number
   ratedGames: number
   casualGames: number
+  bestWeek: { weekStart: string; winRate: number; games: number } | null
+  worstWeek: { weekStart: string; winRate: number; games: number } | null
 }
 
 // Real opponent/rivalry stats, computed directly from fetched game results
@@ -195,6 +197,7 @@ export interface RivalryStats {
   highestRatedOpponentBeaten: { name: string; rating: number } | null
   biggestUpsetWin: { opponent: string; ratingGap: number; opponentRating: number } | null
   biggestUpsetLoss: { opponent: string; ratingGap: number; opponentRating: number } | null
+  revengeWins: number
 }
 
 // Real, zero-cost stats derived purely from legal-move search over each

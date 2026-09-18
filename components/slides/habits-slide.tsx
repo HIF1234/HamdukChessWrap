@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import type { ChessWrapData } from "@/lib/types"
-import { Clock, Calendar, Moon, Sun, Coffee, Zap } from "lucide-react"
+import { Clock, Calendar, Moon, Sun, Coffee, Zap, TrendingDown, Handshake } from "lucide-react"
 
 export function HabitsSlide({ data }: { data: ChessWrapData }) {
   const { playHabits } = data
@@ -67,20 +67,34 @@ export function HabitsSlide({ data }: { data: ChessWrapData }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-4"
+        className="w-full max-w-5xl grid grid-cols-2 md:grid-cols-4 gap-4"
       >
         <div className="p-6 rounded-3xl bg-primary/5 border border-primary/20 flex items-center gap-4">
           <Zap className="w-8 h-8 text-primary shrink-0" />
           <div className="text-left">
-            <p className="text-xs text-muted-foreground uppercase">Longest Streak</p>
-            <p className="text-2xl font-black">{data.player.longestWinStreak} Wins</p>
+            <p className="text-xs text-muted-foreground uppercase">Win Streak</p>
+            <p className="text-2xl font-black">{data.player.longestWinStreak}</p>
+          </div>
+        </div>
+        <div className="p-6 rounded-3xl bg-destructive/5 border border-destructive/20 flex items-center gap-4">
+          <TrendingDown className="w-8 h-8 text-destructive shrink-0" />
+          <div className="text-left">
+            <p className="text-xs text-muted-foreground uppercase">Loss Streak</p>
+            <p className="text-2xl font-black">{data.player.longestLosingStreak || 0}</p>
+          </div>
+        </div>
+        <div className="p-6 rounded-3xl bg-blue-500/5 border border-blue-500/20 flex items-center gap-4">
+          <Handshake className="w-8 h-8 text-blue-400 shrink-0" />
+          <div className="text-left">
+            <p className="text-xs text-muted-foreground uppercase">Draw Streak</p>
+            <p className="text-2xl font-black">{data.tacticalStats.longestDrawStreak}</p>
           </div>
         </div>
         <div className="p-6 rounded-3xl bg-accent/5 border border-accent/20 flex items-center gap-4">
           <Calendar className="w-8 h-8 text-accent shrink-0" />
           <div className="text-left">
             <p className="text-xs text-muted-foreground uppercase">Active Days</p>
-            <p className="text-2xl font-black">{data.player.activeDays} Days</p>
+            <p className="text-2xl font-black">{data.player.activeDays}</p>
           </div>
         </div>
       </motion.div>

@@ -113,6 +113,17 @@ export function RivalriesSlide({ data }: { data: ChessWrapData }) {
           )}
         </motion.div>
       )}
+
+      {r.revengeWins > 0 && (
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="text-sm text-center text-muted-foreground italic"
+        >
+          You avenged a previous loss with a revenge win {r.revengeWins} time{r.revengeWins === 1 ? "" : "s"} this year.
+        </motion.p>
+      )}
     </div>
   )
 }

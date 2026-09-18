@@ -212,6 +212,17 @@ const NEMESIS_MIN_GAMES = 3
 // Real opponent/rivalry stats — every number here comes straight from the
 // fetched games (opponent name, rating, result), nothing estimated.
 function calculateRivalryStats(games: ChessGame[]): RivalryStats {
+  const sortedByDate = [...games].sort((a, b) => a.date.getTime() - b.date.getTime())
+  const lastResultByOpponent = new Map<string, ChessGame["result"]>()
+  let revengeWins = 0
+  for (const game of sortedByDate) {
+    const opponent = game.userColor === "white" ? game.black : game.white
+    if (lastResultByOpponent.get(opponent) === "loss" && game.result === "win") {
+      revengeWins++
+    }
+    lastResultByOpponent.set(opponent, game.result)
+  }
+
   const opponentRecords = new Map<string, { games: number; wins: number; losses: number; draws: number }>()
 
   for (const game of games) {
@@ -292,6 +303,7 @@ function calculateRivalryStats(games: ChessGame[]): RivalryStats {
     highestRatedOpponentBeaten,
     biggestUpsetWin: biggestUpsetWin && biggestUpsetWin.ratingGap > 0 ? biggestUpsetWin : null,
     biggestUpsetLoss: biggestUpsetLoss && biggestUpsetLoss.ratingGap > 0 ? biggestUpsetLoss : null,
+    revengeWins,
   }
 }
 
@@ -1125,6 +1137,27 @@ function calculateActivityStats(games: ChessGame[]): ActivityStats {
   const ratedGames = games.filter((g) => g.rated !== false).length
   const casualGames = games.length - ratedGames
 
+  const WEEK_MIN_GAMES = 3
+  const weekRecords = new Map<string, { games: number; wins: number }>()
+  for (const game of games) {
+    const weekStart = new Date(game.date)
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+    const key = weekStart.toISOString().split("T")[0]
+    if (!weekRecords.has(key)) weekRecords.set(key, { games: 0, wins: 0 })
+    const record = weekRecords.get(key)!
+    record.games++
+    if (game.result === "win") record.wins++
+  }
+
+  let bestWeek: ActivityStats["bestWeek"] = null
+  let worstWeek: ActivityStats["worstWeek"] = null
+  for (const [weekStart, record] of weekRecords.entries()) {
+    if (record.games < WEEK_MIN_GAMES) continue
+    const winRate = (record.wins / record.games) * 100
+    if (!bestWeek || winRate > bestWeek.winRate) bestWeek = { weekStart, winRate, games: record.games }
+    if (!worstWeek || winRate < worstWeek.winRate) worstWeek = { weekStart, winRate, games: record.games }
+  }
+
   return {
     mostActiveDay,
     quietestMonth,
@@ -1133,6 +1166,8 @@ function calculateActivityStats(games: ChessGame[]): ActivityStats {
     totalMovesPlayed,
     ratedGames,
     casualGames,
+    bestWeek,
+    worstWeek,
   }
 }
 
