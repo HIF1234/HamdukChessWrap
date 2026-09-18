@@ -5,7 +5,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { WrapConfig, Platform } from "@/lib/types"
-import { ChevronRight, Loader2, Search, Brain, Flame } from "lucide-react"
+import { ChevronRight, Loader2, Search, Brain, Flame, Zap, Layers } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { WRAP_YEAR } from "@/lib/constants"
 
@@ -18,11 +18,12 @@ export function UsernameInput({ onGenerate, isLoading }: UsernameInputProps) {
   const [username, setUsername] = useState("")
   const [platform, setPlatform] = useState<Platform>("chess.com")
   const [narrationMode, setNarrationMode] = useState<"coach" | "roast">("coach") // added narration mode state
+  const [wrapMode, setWrapMode] = useState<"simple" | "comprehensive">("simple")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!username) return
-    onGenerate({ username, platform, year: WRAP_YEAR, narrationMode }) // include narration mode in config
+    onGenerate({ username, platform, year: WRAP_YEAR, narrationMode, wrapMode })
   }
 
   return (
@@ -53,6 +54,35 @@ export function UsernameInput({ onGenerate, isLoading }: UsernameInputProps) {
         >
           <Flame className="w-4 h-4" />
           <span className="text-sm font-bold uppercase tracking-wider">Roast Mode</span>
+        </button>
+      </div>
+
+      <div className="flex justify-center gap-4 mb-4">
+        <button
+          type="button"
+          onClick={() => setWrapMode("simple")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-full border transition-all",
+            wrapMode === "simple"
+              ? "bg-secondary/20 border-secondary text-secondary"
+              : "bg-muted border-border text-muted-foreground",
+          )}
+        >
+          <Zap className="w-4 h-4" />
+          <span className="text-sm font-bold uppercase tracking-wider">Simple</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setWrapMode("comprehensive")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-full border transition-all",
+            wrapMode === "comprehensive"
+              ? "bg-accent/20 border-accent text-accent"
+              : "bg-muted border-border text-muted-foreground",
+          )}
+        >
+          <Layers className="w-4 h-4" />
+          <span className="text-sm font-bold uppercase tracking-wider">Comprehensive</span>
         </button>
       </div>
 

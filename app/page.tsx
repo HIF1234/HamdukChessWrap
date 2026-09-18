@@ -16,6 +16,7 @@ export default function LandingPage() {
   const [loading, setLoading] = useState(false)
   const [wrapData, setWrapData] = useState<ChessWrapData | null>(null)
   const [shareId, setShareId] = useState<string | null>(null)
+  const [wrapMode, setWrapMode] = useState<"simple" | "comprehensive">("simple")
   const [error, setError] = useState<string | null>(null) // added error state for user feedback
   const searchParams = useSearchParams()
 
@@ -44,6 +45,7 @@ export default function LandingPage() {
         const id = await saveChessWrap(config.username, config.platform, config.narrationMode || "coach", data)
         setWrapData(data)
         setShareId(id)
+        setWrapMode(config.wrapMode || "simple")
         window.history.pushState({}, "", `?id=${id}`)
       } else {
         // show user-friendly error message when account doesn't exist or has no games
@@ -75,6 +77,7 @@ export default function LandingPage() {
       <WrapPreview
         data={wrapData}
         shareId={shareId}
+        wrapMode={wrapMode}
         onReset={() => {
           setWrapData(null)
           setError(null) // clear error on reset

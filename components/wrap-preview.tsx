@@ -2,7 +2,7 @@
 
 import { useState, useEffect, type ComponentType } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Play, Pause, Share2, Volume2, VolumeX } from "lucide-react"
+import { X, Play, Pause, Share2, Volume2, VolumeX, Layers, Zap } from "lucide-react"
 import type { ChessWrapData } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { IntroSlide } from "@/components/slides/intro-slide"
@@ -36,46 +36,61 @@ import { WRAP_YEAR } from "@/lib/constants"
 interface WrapPreviewProps {
   data: ChessWrapData
   shareId: string | null
+  wrapMode?: "simple" | "comprehensive"
   onReset: () => void
 }
 
-export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
+// "simple" slides are the curated, Spotify-Wrapped-style pass through the
+// highlights — short and punchy. "comprehensive" slides only appear in
+// comprehensive mode, going deep on everything else. Same visual style
+// throughout; comprehensive is just simple + more stops.
+type SlideTier = "simple" | "comprehensive"
+
+export function WrapPreview({ data, shareId, wrapMode = "simple", onReset }: WrapPreviewProps) {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [progress, setProgress] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
+  const [mode, setMode] = useState<"simple" | "comprehensive">(wrapMode)
 
   const bgMusic = "https://8e9prkracgmwcsm9.public.blob.vercel-storage.com/prettyjohn1-spring-vlog_34sec-508391.mp3"
   const roastMusic = "https://8e9prkracgmwcsm9.public.blob.vercel-storage.com/prettyjohn1-spring-vlog_34sec-508391.mp3"
 
-  const slides = [
-    { id: "intro", component: IntroSlide },
-    { id: "profile", component: ProfileSlide },
-    { id: "journey", component: JourneySlide },
-    { id: "matchups", component: MatchupsSlide },
-    { id: "rivalries", component: RivalriesSlide },
-    { id: "stats", component: StatsSlide },
-    { id: "activity", component: ActivitySlide },
-    { id: "time-controls", component: TimeControlsSlide },
-    { id: "rating-mastery", component: RatingMasterySlide },
-    { id: "rating-graph", component: RatingGraphSlide },
-    { id: "rating", component: RatingSlide },
-    { id: "opening", component: OpeningSlide },
-    { id: "opening-style", component: OpeningStyleSlide },
-    { id: "playstyle", component: PlaystyleSlide },
-    { id: "game-quality", component: GameQualitySlide },
-    { id: "performance-highlights", component: PerformanceHighlightsSlide },
-    { id: "habits", component: HabitsSlide },
-    { id: "tactical-stats", component: TacticalStatsSlide },
-    { id: "achievements", component: AchievementsSlide },
-    { id: "insights", component: InsightsSlide },
-    { id: "highlights", component: HighlightSlide },
-    { id: "coaching", component: CoachingSlide },
-    { id: "year-card", component: YearCardSlide },
-    { id: "rating-growth-card", component: RatingGrowthCardSlide },
-    { id: "personality-card", component: PersonalityCardSlide },
-    { id: "share", component: ShareSlide },
+  const allSlides: { id: string; component: any; tier: SlideTier }[] = [
+    { id: "intro", component: IntroSlide, tier: "simple" },
+    { id: "profile", component: ProfileSlide, tier: "simple" },
+    { id: "journey", component: JourneySlide, tier: "comprehensive" },
+    { id: "matchups", component: MatchupsSlide, tier: "comprehensive" },
+    { id: "rivalries", component: RivalriesSlide, tier: "comprehensive" },
+    { id: "stats", component: StatsSlide, tier: "simple" },
+    { id: "activity", component: ActivitySlide, tier: "comprehensive" },
+    { id: "time-controls", component: TimeControlsSlide, tier: "comprehensive" },
+    { id: "rating-mastery", component: RatingMasterySlide, tier: "comprehensive" },
+    { id: "rating-graph", component: RatingGraphSlide, tier: "comprehensive" },
+    { id: "rating", component: RatingSlide, tier: "simple" },
+    { id: "opening", component: OpeningSlide, tier: "simple" },
+    { id: "opening-style", component: OpeningStyleSlide, tier: "comprehensive" },
+    { id: "playstyle", component: PlaystyleSlide, tier: "simple" },
+    { id: "game-quality", component: GameQualitySlide, tier: "comprehensive" },
+    { id: "performance-highlights", component: PerformanceHighlightsSlide, tier: "comprehensive" },
+    { id: "habits", component: HabitsSlide, tier: "comprehensive" },
+    { id: "tactical-stats", component: TacticalStatsSlide, tier: "comprehensive" },
+    { id: "achievements", component: AchievementsSlide, tier: "simple" },
+    { id: "insights", component: InsightsSlide, tier: "simple" },
+    { id: "highlights", component: HighlightSlide, tier: "simple" },
+    { id: "coaching", component: CoachingSlide, tier: "comprehensive" },
+    { id: "year-card", component: YearCardSlide, tier: "comprehensive" },
+    { id: "rating-growth-card", component: RatingGrowthCardSlide, tier: "comprehensive" },
+    { id: "personality-card", component: PersonalityCardSlide, tier: "comprehensive" },
+    { id: "share", component: ShareSlide, tier: "simple" },
   ]
+
+  const slides = allSlides.filter((s) => mode === "comprehensive" || s.tier === "simple")
+
+  useEffect(() => {
+    setCurrentSlide(0)
+    setProgress(0)
+  }, [mode])
 
   const totalSlides = slides.length
   const duration = 6000
@@ -202,6 +217,15 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setMode(mode === "simple" ? "comprehensive" : "simple")}
+            className="rounded-full bg-black/20 backdrop-blur-md border border-white/10 hover:bg-black/40 px-3 gap-1.5"
+          >
+            {mode === "simple" ? <Zap className="w-3.5 h-3.5" /> : <Layers className="w-3.5 h-3.5" />}
+            <span className="text-[10px] font-bold uppercase tracking-wider">{mode}</span>
+          </Button>
           <Button
             variant="ghost"
             size="icon"

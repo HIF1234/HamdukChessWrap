@@ -257,4 +257,7 @@ export interface WrapConfig {
   startDate?: Date
   endDate?: Date
   narrationMode?: "coach" | "roast" | "neutral"
+  // "simple" = short, curated, Spotify-Wrapped-style pass through the highlights.
+  // "comprehensive" = every slide, same visual style, for players who want the full picture.
+  wrapMode?: "simple" | "comprehensive"
 }
