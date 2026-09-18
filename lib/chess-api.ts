@@ -19,6 +19,7 @@ import type {
 import { createBrowserClient } from "@supabase/ssr"
 import ecoCodesData from "./eco-codes.json"
 import { analyzeGameWithEngine } from "./engine-analysis"
+import { computeTacticalStats } from "./pgn-analysis"
 
 const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
@@ -1261,6 +1262,7 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
     const aiInsights = await generateAIInsights(games, playerStats, openingStats, narrationMode)
     const playHabits = calculatePlayHabits(games)
     const achievements = generateAchievements(games, playerStats, playstyleAnalysis)
+    const tacticalStats = computeTacticalStats(games)
 
     return {
       player: playerStats,
@@ -1275,6 +1277,7 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
       trainingPlan,
       playHabits,
       achievements,
+      tacticalStats,
       dateRange: {
         start: games[0].date,
         end: games[games.length - 1].date,

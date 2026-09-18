@@ -172,6 +172,25 @@ export interface Achievement {
   icon?: string
 }
 
+// Real, zero-cost stats derived purely from legal-move search over each
+// game's actual PGN (chess.js only — no engine, no paid API). See
+// lib/pgn-analysis.ts.
+export interface TacticalStats {
+  totalPiecesCaptured: number
+  totalChecksDelivered: number
+  enPassantCaptures: number
+  underpromotions: number
+  fastestCheckmate: { moves: number; gameId: string } | null
+  missedMateInOneByUser: number
+  missedMateInOneByOpponent: number
+  stalemateDraws: number
+  threefoldDraws: number
+  insufficientMaterialDraws: number
+  fiftyMoveDraws: number
+  shortDecisiveGames: number
+  longestDrawStreak: number
+}
+
 export interface ChessWrapData {
   player: PlayerStats
   timeControlBreakdown: TimeControlStats[]
@@ -185,6 +204,7 @@ export interface ChessWrapData {
   trainingPlan: TrainingPlan[]
   playHabits: PlayHabits // Added play habits
   achievements: Achievement[] // Added achievements
+  tacticalStats: TacticalStats
   dateRange: {
     start: Date
     end: Date

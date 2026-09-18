@@ -18,6 +18,7 @@ import { OpeningSlide } from "@/components/slides/opening-slide"
 import { OpeningStyleSlide } from "@/components/slides/opening-style-slide"
 import { PlaystyleSlide } from "@/components/slides/playstyle-slide"
 import { HabitsSlide } from "@/components/slides/habits-slide"
+import { TacticalStatsSlide } from "@/components/slides/tactical-stats-slide"
 import { AchievementsSlide } from "@/components/slides/achievements-slide"
 import { InsightsSlide } from "@/components/slides/insights-slide"
 import { GameQualitySlide } from "@/components/slides/game-quality-slide"
@@ -61,6 +62,7 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
     { id: "game-quality", component: GameQualitySlide },
     { id: "performance-highlights", component: PerformanceHighlightsSlide },
     { id: "habits", component: HabitsSlide },
+    { id: "tactical-stats", component: TacticalStatsSlide },
     { id: "achievements", component: AchievementsSlide },
     { id: "insights", component: InsightsSlide },
     { id: "highlights", component: HighlightSlide },
