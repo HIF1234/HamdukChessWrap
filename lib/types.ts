@@ -139,6 +139,8 @@ export interface PlaystyleAnalysis {
   totalMistakes?: number
   totalInaccuracies?: number
   gamesAnalyzed?: number
+  realAccuracyGames?: number // games with Chess.com's own computed accuracy, not estimated
+  realAccuracyAverage?: number | null
 }
 
 export interface AIInsights {

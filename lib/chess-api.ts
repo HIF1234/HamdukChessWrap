@@ -94,6 +94,10 @@ export async function fetchChessDotComGames(username: string, year: number): Pro
               ecoCode,
               moveCount,
               rated: game.rated !== false,
+              // Chess.com computes real per-side accuracy via its own Game
+              // Review once a game is analyzed; use it directly when present
+              // instead of estimating.
+              accuracy: game.accuracies ? game.accuracies[userColor] : undefined,
             })
           }
         }
@@ -940,11 +944,34 @@ async function calculateGameQualityMetrics(games: ChessGame[]): Promise<{
   totalInaccuracies: number
   averageACPL: number
   gamesAnalyzed: number
+  realAccuracyGames: number
+  realAccuracyAverage: number | null
 }> {
-  const empty = { averageAccuracy: 0, totalBlunders: 0, totalMistakes: 0, totalInaccuracies: 0, averageACPL: 0, gamesAnalyzed: 0 }
+  const empty = {
+    averageAccuracy: 0,
+    totalBlunders: 0,
+    totalMistakes: 0,
+    totalInaccuracies: 0,
+    averageACPL: 0,
+    gamesAnalyzed: 0,
+    realAccuracyGames: 0,
+    realAccuracyAverage: null,
+  }
   if (games.length === 0) return empty
 
-  const sample = pickAnalysisSample(games)
+  // Chess.com computes real per-game accuracy via its own Game Review; when
+  // present, use it directly instead of estimating, and spend the (much more
+  // expensive) Stockfish budget on the games that don't already have it.
+  const gamesWithRealAccuracy = games.filter((g) => typeof g.accuracy === "number")
+  const realAccuracyAverage =
+    gamesWithRealAccuracy.length > 0
+      ? Math.round(
+          (gamesWithRealAccuracy.reduce((sum, g) => sum + (g.accuracy || 0), 0) / gamesWithRealAccuracy.length) * 10,
+        ) / 10
+      : null
+
+  const gamesNeedingEstimate = games.filter((g) => typeof g.accuracy !== "number")
+  const sample = pickAnalysisSample(gamesNeedingEstimate.length > 0 ? gamesNeedingEstimate : games)
 
   let accuracySum = 0
   let acplSum = 0
@@ -971,17 +998,30 @@ async function calculateGameQualityMetrics(games: ChessGame[]): Promise<{
     analyzed++
   }
 
-  if (analyzed === 0) return empty
+  if (analyzed === 0) {
+    return {
+      ...empty,
+      averageAccuracy: realAccuracyAverage ?? 0,
+      realAccuracyGames: gamesWithRealAccuracy.length,
+      realAccuracyAverage,
+    }
+  }
 
   const scale = games.length / analyzed
+  // Blend Chess.com's real accuracy with our Stockfish estimate when both exist,
+  // weighted by how many games back each one.
+  const combinedAccuracySum = accuracySum + gamesWithRealAccuracy.length * (realAccuracyAverage || 0)
+  const combinedCount = analyzed + gamesWithRealAccuracy.length
 
   return {
-    averageAccuracy: Math.round((accuracySum / analyzed) * 10) / 10,
+    averageAccuracy: Math.round((combinedAccuracySum / combinedCount) * 10) / 10,
     averageACPL: Math.round((acplSum / analyzed) * 10) / 10,
     totalBlunders: Math.round((blunderSum / analyzed) * scale),
     totalMistakes: Math.round((mistakeSum / analyzed) * scale),
     totalInaccuracies: Math.round((inaccuracySum / analyzed) * scale),
-    gamesAnalyzed: analyzed,
+    gamesAnalyzed: analyzed + gamesWithRealAccuracy.length,
+    realAccuracyGames: gamesWithRealAccuracy.length,
+    realAccuracyAverage,
   }
 }
 
@@ -1535,6 +1575,8 @@ async function analyzePlaystyle(games: ChessGame[]): Promise<PlaystyleAnalysis> 
     totalInaccuracies: qualityMetrics.totalInaccuracies,
     averageACPL: qualityMetrics.averageACPL,
     gamesAnalyzed: qualityMetrics.gamesAnalyzed,
+    realAccuracyGames: qualityMetrics.realAccuracyGames,
+    realAccuracyAverage: qualityMetrics.realAccuracyAverage,
   }
 }
 

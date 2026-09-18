@@ -15,6 +15,7 @@ export function GameQualitySlide({ data }: GameQualitySlideProps) {
   const inaccuracies = data.playstyle.totalInaccuracies || 0
   const acpl = data.playstyle.averageACPL || 0
   const gamesAnalyzed = data.playstyle.gamesAnalyzed || 0
+  const realAccuracyGames = data.playstyle.realAccuracyGames || 0
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -147,7 +148,9 @@ export function GameQualitySlide({ data }: GameQualitySlideProps) {
         <p>Your accuracy of <span className="text-cyan-400 font-semibold">{accuracy.toFixed(1)}%</span> indicates <span className="text-cyan-400 font-semibold">strong positional understanding</span></p>
         {gamesAnalyzed > 0 && (
           <p className="text-xs text-gray-500">
-            Based on Stockfish analysis of {gamesAnalyzed} representative game{gamesAnalyzed === 1 ? "" : "s"} this year
+            Based on {gamesAnalyzed} representative game{gamesAnalyzed === 1 ? "" : "s"} this year
+            {realAccuracyGames > 0 &&
+              ` — ${realAccuracyGames} from Chess.com's own Game Review, the rest from our Stockfish pass`}
           </p>
         )}
       </motion.div>
