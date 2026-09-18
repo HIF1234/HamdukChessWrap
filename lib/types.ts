@@ -185,6 +185,18 @@ export interface ActivityStats {
   casualGames: number
 }
 
+// Real opponent/rivalry stats, computed directly from fetched game results
+// (no estimation).
+export interface RivalryStats {
+  nemesis: { name: string; games: number; wins: number; losses: number; draws: number } | null
+  favoriteVictim: { name: string; games: number; wins: number; losses: number; draws: number } | null
+  rival: { name: string; games: number; wins: number; losses: number; draws: number } | null
+  highestRatedOpponentFaced: { name: string; rating: number } | null
+  highestRatedOpponentBeaten: { name: string; rating: number } | null
+  biggestUpsetWin: { opponent: string; ratingGap: number; opponentRating: number } | null
+  biggestUpsetLoss: { opponent: string; ratingGap: number; opponentRating: number } | null
+}
+
 // Real, zero-cost stats derived purely from legal-move search over each
 // game's actual PGN (chess.js only — no engine, no paid API). See
 // lib/pgn-analysis.ts.
@@ -219,6 +231,7 @@ export interface ChessWrapData {
   achievements: Achievement[] // Added achievements
   tacticalStats: TacticalStats
   activityStats: ActivityStats
+  rivalryStats: RivalryStats
   dateRange: {
     start: Date
     end: Date

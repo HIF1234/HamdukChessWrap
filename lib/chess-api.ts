@@ -16,6 +16,7 @@ import type {
   Achievement,
   PlayHabits,
   ActivityStats,
+  RivalryStats,
 } from "./types"
 import { createBrowserClient } from "@supabase/ssr"
 import ecoCodesData from "./eco-codes.json"
@@ -203,6 +204,94 @@ export function getHighestRatedWin(games: ChessGame[]): { opponent: string; rati
     opponent: best.userColor === "white" ? best.black : best.white,
     rating: best.opponentRating,
     timeControl: best.timeControl,
+  }
+}
+
+const NEMESIS_MIN_GAMES = 3
+
+// Real opponent/rivalry stats — every number here comes straight from the
+// fetched games (opponent name, rating, result), nothing estimated.
+function calculateRivalryStats(games: ChessGame[]): RivalryStats {
+  const opponentRecords = new Map<string, { games: number; wins: number; losses: number; draws: number }>()
+
+  for (const game of games) {
+    const opponent = game.userColor === "white" ? game.black : game.white
+    if (!opponentRecords.has(opponent)) {
+      opponentRecords.set(opponent, { games: 0, wins: 0, losses: 0, draws: 0 })
+    }
+    const record = opponentRecords.get(opponent)!
+    record.games++
+    if (game.result === "win") record.wins++
+    if (game.result === "loss") record.losses++
+    if (game.result === "draw") record.draws++
+  }
+
+  let nemesis: RivalryStats["nemesis"] = null
+  let nemesisWinRate = Infinity
+  let favoriteVictim: RivalryStats["favoriteVictim"] = null
+  let favoriteVictimWinRate = -Infinity
+  let rival: RivalryStats["rival"] = null
+
+  for (const [name, record] of opponentRecords.entries()) {
+    if (!rival || record.games > rival.games) {
+      rival = { name, ...record }
+    }
+
+    if (record.games >= NEMESIS_MIN_GAMES) {
+      const winRate = record.wins / record.games
+      if (winRate < nemesisWinRate) {
+        nemesisWinRate = winRate
+        nemesis = { name, ...record }
+      }
+      if (winRate > favoriteVictimWinRate) {
+        favoriteVictimWinRate = winRate
+        favoriteVictim = { name, ...record }
+      }
+    }
+  }
+
+  let highestRatedOpponentFaced: RivalryStats["highestRatedOpponentFaced"] = null
+  let highestRatedOpponentBeaten: RivalryStats["highestRatedOpponentBeaten"] = null
+  let biggestUpsetWin: RivalryStats["biggestUpsetWin"] = null
+  let biggestUpsetLoss: RivalryStats["biggestUpsetLoss"] = null
+  let biggestUpsetWinGap = -Infinity
+  let biggestUpsetLossGap = -Infinity
+
+  for (const game of games) {
+    const opponent = game.userColor === "white" ? game.black : game.white
+
+    if (!highestRatedOpponentFaced || game.opponentRating > highestRatedOpponentFaced.rating) {
+      highestRatedOpponentFaced = { name: opponent, rating: game.opponentRating }
+    }
+
+    if (game.result === "win") {
+      if (!highestRatedOpponentBeaten || game.opponentRating > highestRatedOpponentBeaten.rating) {
+        highestRatedOpponentBeaten = { name: opponent, rating: game.opponentRating }
+      }
+      const gap = game.opponentRating - game.userRating
+      if (gap > biggestUpsetWinGap) {
+        biggestUpsetWinGap = gap
+        biggestUpsetWin = { opponent, ratingGap: gap, opponentRating: game.opponentRating }
+      }
+    }
+
+    if (game.result === "loss") {
+      const gap = game.userRating - game.opponentRating
+      if (gap > biggestUpsetLossGap) {
+        biggestUpsetLossGap = gap
+        biggestUpsetLoss = { opponent, ratingGap: gap, opponentRating: game.opponentRating }
+      }
+    }
+  }
+
+  return {
+    nemesis,
+    favoriteVictim,
+    rival,
+    highestRatedOpponentFaced,
+    highestRatedOpponentBeaten,
+    biggestUpsetWin: biggestUpsetWin && biggestUpsetWin.ratingGap > 0 ? biggestUpsetWin : null,
+    biggestUpsetLoss: biggestUpsetLoss && biggestUpsetLoss.ratingGap > 0 ? biggestUpsetLoss : null,
   }
 }
 
@@ -1319,6 +1408,7 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
     const achievements = generateAchievements(games, playerStats, playstyleAnalysis)
     const tacticalStats = computeTacticalStats(games)
     const activityStats = calculateActivityStats(games)
+    const rivalryStats = calculateRivalryStats(games)
 
     return {
       player: playerStats,
@@ -1335,6 +1425,7 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
       achievements,
       tacticalStats,
       activityStats,
+      rivalryStats,
       dateRange: {
         start: games[0].date,
         end: games[games.length - 1].date,

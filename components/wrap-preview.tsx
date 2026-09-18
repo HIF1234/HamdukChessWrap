@@ -20,6 +20,7 @@ import { PlaystyleSlide } from "@/components/slides/playstyle-slide"
 import { HabitsSlide } from "@/components/slides/habits-slide"
 import { TacticalStatsSlide } from "@/components/slides/tactical-stats-slide"
 import { ActivitySlide } from "@/components/slides/activity-slide"
+import { RivalriesSlide } from "@/components/slides/rivalries-slide"
 import { AchievementsSlide } from "@/components/slides/achievements-slide"
 import { InsightsSlide } from "@/components/slides/insights-slide"
 import { GameQualitySlide } from "@/components/slides/game-quality-slide"
@@ -52,6 +53,7 @@ export function WrapPreview({ data, shareId, onReset }: WrapPreviewProps) {
     { id: "profile", component: ProfileSlide },
     { id: "journey", component: JourneySlide },
     { id: "matchups", component: MatchupsSlide },
+    { id: "rivalries", component: RivalriesSlide },
     { id: "stats", component: StatsSlide },
     { id: "activity", component: ActivitySlide },
     { id: "time-controls", component: TimeControlsSlide },
