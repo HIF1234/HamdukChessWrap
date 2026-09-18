@@ -81,6 +81,13 @@ export interface OpeningStats {
   isGambit?: boolean // Whether this opening is classified as a gambit
 }
 
+// Real first-move breakdown as White, parsed directly from each game's PGN.
+export interface FirstMoveStat {
+  move: string
+  games: number
+  winRate: number
+}
+
 export interface ColorStats {
   color: "white" | "black"
   games: number
@@ -235,6 +242,7 @@ export interface ChessWrapData {
   tacticalStats: TacticalStats
   activityStats: ActivityStats
   rivalryStats: RivalryStats
+  firstMoveStats: FirstMoveStat[]
   dateRange: {
     start: Date
     end: Date

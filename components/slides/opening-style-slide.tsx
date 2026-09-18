@@ -144,6 +144,30 @@ export function OpeningStyleSlide({ data }: { data: ChessWrapData }) {
         )}
       </div>
 
+      {/* First Move Split (as White) */}
+      {data.firstMoveStats.length > 0 && (
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.45 }}
+          className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 space-y-3"
+        >
+          <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-widest">
+            Your First Move as White
+          </p>
+          <div className="space-y-2">
+            {data.firstMoveStats.slice(0, 5).map((fm) => (
+              <div key={fm.move} className="flex items-center justify-between text-sm">
+                <span className="font-mono font-bold">1. {fm.move}</span>
+                <span className="text-muted-foreground">
+                  {fm.games} games · {fm.winRate}% win rate
+                </span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {/* ECO Codes */}
       {topOpenings.length > 0 && (
         <motion.div

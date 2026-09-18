@@ -17,6 +17,7 @@ import type {
   PlayHabits,
   ActivityStats,
   RivalryStats,
+  FirstMoveStat,
 } from "./types"
 import { createBrowserClient } from "@supabase/ssr"
 import ecoCodesData from "./eco-codes.json"
@@ -872,6 +873,35 @@ function calculateOpeningStats(games: ChessGame[]): OpeningStats[] {
     .slice(0, 10)
 }
 
+const KNOWN_FIRST_MOVES = ["e4", "d4", "Nf3", "c4", "g3", "b3"]
+
+// Real first-move breakdown as White, parsed straight from each game's PGN.
+function calculateFirstMoveStats(games: ChessGame[]): FirstMoveStat[] {
+  const counts = new Map<string, { games: number; wins: number }>()
+
+  for (const game of games) {
+    if (game.userColor !== "white" || !game.pgn) continue
+    const match = game.pgn.match(/1\.\s*(\S+)/)
+    if (!match) continue
+
+    const cleaned = match[1].replace(/[+#!?]/g, "")
+    const label = KNOWN_FIRST_MOVES.includes(cleaned) ? cleaned : "Other"
+
+    if (!counts.has(label)) counts.set(label, { games: 0, wins: 0 })
+    const record = counts.get(label)!
+    record.games++
+    if (game.result === "win") record.wins++
+  }
+
+  return Array.from(counts.entries())
+    .map(([move, record]) => ({
+      move,
+      games: record.games,
+      winRate: record.games > 0 ? Math.round((record.wins / record.games) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.games - a.games)
+}
+
 // Real Stockfish accuracy/blunder analysis is expensive (each position needs
 // an engine search), so we only run it over a bounded, representative sample
 // of the season rather than every game, then scale the counts up to the full
@@ -1444,6 +1474,7 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
     const tacticalStats = computeTacticalStats(games)
     const activityStats = calculateActivityStats(games)
     const rivalryStats = calculateRivalryStats(games)
+    const firstMoveStats = calculateFirstMoveStats(games)
 
     return {
       player: playerStats,
@@ -1461,6 +1492,7 @@ export async function generateChessWrap(config: WrapConfig): Promise<ChessWrapDa
       tacticalStats,
       activityStats,
       rivalryStats,
+      firstMoveStats,
       dateRange: {
         start: games[0].date,
         end: games[games.length - 1].date,
